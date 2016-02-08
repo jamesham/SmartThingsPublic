@@ -32,7 +32,7 @@ def updated() {
 }
 def switchOnHandler(evt) {
   log.trace "Turning on switches $switches with pattern $pattern1"
-  switches.pattern1()
+  switches.${pattern1}()
 }
 def switchOffHandler(evt) {
   log.trace "Turning on switches: $switches"
