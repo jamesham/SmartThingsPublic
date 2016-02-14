@@ -1,5 +1,5 @@
 /**
- *  OSRAM Lightify Dimming Switch
+ *  OSRAM Lightify Dimming Switch v2
  *
  *  Copyright 2016 Michael Hudson
  *
@@ -35,8 +35,32 @@ metadata {
       standardTile("button", "device.button", width: 2, height: 2) {
         state "default", label: "", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#ffffff"
       }
+      valueTile("temperature", "device.temperature", width: 2, height: 2) {
+        state("temperature", label:'${currentValue}°',
+          backgroundColors:[
+            [value: 14, color: "#153591"],
+            [value: 20, color: "#165e95"],
+            [value: 26, color: "#178998"],
+            [value: 32, color: "#189c82"],
+            [value: 38, color: "#199f5c"],
+            [value: 44, color: "#1aa333"],
+            [value: 50, color: "#2da71c"],
+            [value: 56, color: "#5baa1d"],
+            [value: 62, color: "#8aae1e"],
+            [value: 68, color: "#b1a81f"],
+            [value: 76, color: "#b57d20"],
+            [value: 82, color: "#b85122"],
+            [value: 88, color: "#bc2323"],
+            [value: 94, color: "#d04e00"],
+            [value: 100, color: "#bc2323"]
+          ]
+        )
+      }
+//      standardTile("refresh", "device.button", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
+//        state "default", label:"", action:"refresh.refresh", icon:"st.secondary.refresh"
+//      }
       main "button"
-      details(["button"])
+      details(["button", "temperature"])
     }
   }
 }
@@ -48,14 +72,20 @@ def parse(String description) {
   def msg = zigbee.parse(description)
   log.debug msg
   
-  // Call proper method based on command received
-  log.debug "Command is $msg.command and data is $msg.data"
-  if ((msg.command==0) || (msg.command==1 && !msg.data)) {
-    lightPower(msg.command)
-  } else if ((msg.command==1 && msg.data) || (msg.command==5 || msg.command==3)) {
-    lightLevel(msg.command, msg.data)
-  } else {
-    log.warn "Unknown command/data sequence received! Command: $msg.command Data: $msg.data"
+  if (description?.startsWith('catchall:') && (msg.clusterId == 6 || msg.clusterId == 8)) {
+    // Call proper method based on command received
+    log.debug "Command is $msg.command and data is $msg.data"
+    if ((msg.command==0) || (msg.command==1 && !msg.data)) {
+      lightPower(msg.command)
+    } else if ((msg.command==1 && msg.data) || (msg.command==5) || (msg.command==3 && msg.clusterId==8)) {
+      lightLevel(msg.command, msg.data)
+    } else {
+      log.warn "Unknown command/data sequence received! Command: $msg.command Data: $msg.data"
+    }
+  } else if (description?.startsWith('temperature:')) {
+    // Log temperature received from switch
+    log.debug "Temperature is $description"
+    def temperature = zigbee.readAttribute(0x0402, 0x0000)
   }
 }
 
@@ -63,6 +93,9 @@ def configure() {
   log.debug "Executing 'configure'"
 
   def configCmds = [	
+    // Bind the incoming temperature cluster from remote to hub, so the hub receives temperature updates
+    "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0402 {${device.zigbeeId}} {}",
+
     // Bind the outgoing on/off cluster from remote to hub, so remote sends hub messages when On/Off buttons pushed
     "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0006 {${device.zigbeeId}} {}",
 
@@ -101,4 +134,8 @@ def lightLevel(command, data) {
     log.debug "Parse returned ${result?.descriptionText}"
     return result
   }
+}
+
+def refresh() {
+  return zigbee.readAttribute(0x0402, 0x0000)
 }
