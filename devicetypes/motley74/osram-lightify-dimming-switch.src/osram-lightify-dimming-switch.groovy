@@ -1,5 +1,5 @@
 /**
- *  OSRAM Lightify Dimming Switch v2
+ *  OSRAM Lightify Dimming Switch
  *
  *  Copyright 2016 Michael Hudson
  *
