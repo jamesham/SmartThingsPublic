@@ -25,7 +25,7 @@ metadata {
 		//capability "Switch"
 		//capability "Switch Level"
 
-		fingerprint profileId: "0104", deviceId: "0001", inClusters: "0000, 0001, 0003, 0020, 0402, 0B05", outClusters: "0003, 0006, 0008, 0019", manufacturer: "OSRAM", model: "Lightify 2.4GHZZB/SWITCH/LFY", deviceJoinName: "OSRAM Lightify Dimming Switch"
+		fingerprint profileId: "0104", deviceId: "0001", inClusters: "0000, 0001, 0003, 0020, 0402, 0B05", outClusters: "0003, 0006, 0008, 0019" //, manufacturer: "OSRAM", model: "Lightify 2.4GHZZB/SWITCH/LFY", deviceJoinName: "OSRAM Lightify Dimming Switch"
 	}
 
 	simulator {
@@ -43,114 +43,35 @@ metadata {
 	}
 }
 
-// parse events into attributes
+def getClusters() { 
+     "zdo active 0x${device.deviceNetworkId}" 
+       log.debug "Get Clusters Called";
+}
+
 def parse(String description) {
-	log.debug "Parsing '${description}'"
+	log.debug "parse description: $description"
     
     // Create a map from the raw zigbee message to make parsing more intuitive
     def msg = zigbee.parse(description)
-    
-    // Check if the message comes from the on/off cluster (0x0006 in zigbee) to determine if button was On or Off
-    if (msg.clusterId == 6) {
-    	// Command 1 is the zigbee 'on' command, so make that button 1. Else it must be 'off' command, make that button 4.
-    	// Then create the button press event. All button events with be of type "pushed", not "held".
-    	def button = (msg.command == 1 ? 1 : 4)
-        def result = createEvent(name: "button", value: "pushed", data: [buttonNumber: button], descriptionText: "$device.displayName button $button was pushed", isStateChange: true)
-        log.debug "Parse returned ${result?.descriptionText}"
-        return result
-  
-    }
-    
-    // Check if message comes from the level cluster (0x0008 in zigbee) to determine if button was dim up/down
-    if (msg.clusterId == 8) {
-    	
-    	// Remote sends move level and stop commands when dim up/down pushed or held
-    	// Additional parsing and debugging created for when buttons are held, but not creating events for them
-    	// since it is difficult to separate them from pushed events
-    	switch (msg.command) 
-        {
-        	// Move level command means dim/up down was pushed or held
-        	case 2:
-            	
-            	// Position -6 and -5 is the two digit hex of the move step size, which is different for an initial push vs a hold
-            	// Check it for the initial push value '1E'
-                def y = description[-6..-5]
-                if (y == "1E") {
-            		
-            	    // Determine the button push by looking at the move direction determined in position -8 and -7
-            	    // "00" means to move up in level, so dim up button was pushed. Create button event
-                    def button = (description[-8..-7] == "00" ? 2 : 3)
-                	def result = createEvent(name: "button", value: "pushed", data: [buttonNumber: button], descriptionText: "$device.displayName button $button was pushed", isStateChange: true)
-                    log.debug "Parse returned ${result?.descriptionText}"
-                    return result
-					break
-                }
-                // If move step size is not '1E' then the button is being held. Send debug message, but take no action
-                log.debug "Received held message"
-                break
-         	
-            case 3:
-            	// If level command is 3, then stop moving command was sent. Send debug message, but take no action.
-            	// This stop command could be used to get a button 'held' event, but we would need to ignore the initial button push
-            	log.debug "Received stop message"
-                break
-                
-        }
-     }
-
 }
+
 
 // handle commands
 def configure() {
 	log.debug "Executing 'configure'"
 	
-    String zigbeeId = swapEndianHex(device.hub.zigbeeId)
-	log.debug "Confuguring Reporting and Bindings."
+    //String zigbeeId = swapEndianHex(device.hub.zigbeeId)
+	log.debug "Confuguring Bindings."
 	def configCmds = [	
 		
 		// Bind the outgoing on/off cluster from remote to hub, so remote sends hub messages when On/Off buttons pushed
-        	"zdo bind 0x${device.deviceNetworkId} 1 1 6 {${device.zigbeeId}} {}", "delay 1000",
+        //"zdo bind 0x${device.deviceNetworkId} 1 1 6 {${device.zigbeeId}} {}", "delay 1000",
+    	"zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0006 {${device.zigbeeId}} {}",
 		
 		// Bind the outgoing level cluster from remote to hub, so remote sends hub messages when Dim Up/Down buttons pushed
-		"zdo bind 0x${device.deviceNetworkId} 1 1 8 {${device.zigbeeId}} {}", "delay 500",
+		//"zdo bind 0x${device.deviceNetworkId} 1 1 8 {${device.zigbeeId}} {}", "delay 500",
+    	"zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0008 {${device.zigbeeId}} {}",
         
 	]
     return configCmds
-}
-
-private getEndpointId() {
-	new BigInteger(device.endpointId, 16).toString()
-}
-
-private String swapEndianHex(String hex) {
-    reverseArray(hex.decodeHex()).encodeHex()
-}
-
-private byte[] reverseArray(byte[] array) {
-    int i = 0;
-    int j = array.length - 1;
-    byte tmp;
-    while (j > i) {
-        tmp = array[j];
-        array[j] = array[i];
-        array[i] = tmp;
-        j--;
-        i++;
-    }
-    return array
-}
-
-def on() {
-	log.debug "Executing 'on'"
-	// TODO: handle 'on' command
-}
-
-def off() {
-	log.debug "Executing 'off'"
-	// TODO: handle 'off' command
-}
-
-def setLevel() {
-	log.debug "Executing 'setLevel'"
-	// TODO: handle 'setLevel' command
 }
