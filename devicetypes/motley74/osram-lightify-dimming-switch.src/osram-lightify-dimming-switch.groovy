@@ -30,38 +30,36 @@ metadata {
     // TODO: define status and reply messages here
   }
 
-  tiles {
-    tiles {
-      standardTile("button", "device.button", width: 2, height: 2) {
-        state "default", label: "", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#ffffff"
-      }
-      valueTile("temperature", "device.temperature", width: 2, height: 2) {
-        state("temperature", label:'${currentValue}°',
-          backgroundColors:[
-            [value: 14, color: "#153591"],
-            [value: 20, color: "#165e95"],
-            [value: 26, color: "#178998"],
-            [value: 32, color: "#189c82"],
-            [value: 38, color: "#199f5c"],
-            [value: 44, color: "#1aa333"],
-            [value: 50, color: "#2da71c"],
-            [value: 56, color: "#5baa1d"],
-            [value: 62, color: "#8aae1e"],
-            [value: 68, color: "#b1a81f"],
-            [value: 76, color: "#b57d20"],
-            [value: 82, color: "#b85122"],
-            [value: 88, color: "#bc2323"],
-            [value: 94, color: "#d04e00"],
-            [value: 100, color: "#bc2323"]
-          ]
-        )
-      }
-//      standardTile("refresh", "device.button", inactiveLabel: false, decoration: "flat", width: 2, height: 2) {
-//        state "default", label:"", action:"refresh.refresh", icon:"st.secondary.refresh"
-//      }
-      main "button"
-      details(["button", "temperature"])
+  tiles(scale: 2) {
+    standardTile("button", "device.button", width: 6, height: 4) {
+      state "default", label: "", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#ffffff"
     }
+    valueTile("temperature", "device.temperature", width: 2, height: 2) {
+      state("temperature", label:'${currentValue}°',
+        backgroundColors:[
+          [value: 14, color: "#153591"],
+          [value: 20, color: "#165e95"],
+          [value: 26, color: "#178998"],
+          [value: 32, color: "#189c82"],
+          [value: 38, color: "#199f5c"],
+          [value: 44, color: "#1aa333"],
+          [value: 50, color: "#2da71c"],
+          [value: 56, color: "#5baa1d"],
+          [value: 62, color: "#8aae1e"],
+          [value: 68, color: "#b1a81f"],
+          [value: 76, color: "#b57d20"],
+          [value: 82, color: "#b85122"],
+          [value: 88, color: "#bc2323"],
+          [value: 94, color: "#d04e00"],
+          [value: 100, color: "#bc2323"]
+        ]
+      )
+    }
+    standardTile("refresh", "device.button", decoration: "flat", width: 2, height: 2) {
+      state "default", label:"", action:"refresh.refresh", icon:"st.secondary.refresh"
+    }
+    main "button"
+    details(["button", "temperature", "refresh"])
   }
 }
 
@@ -85,7 +83,6 @@ def parse(String description) {
   } else if (description?.startsWith('temperature:')) {
     // Log temperature received from switch
     log.debug "Temperature is $description"
-    def temperature = zigbee.readAttribute(0x0402, 0x0000)
   }
 }
 
@@ -93,14 +90,17 @@ def configure() {
   log.debug "Executing 'configure'"
 
   def configCmds = [	
-    // Bind the incoming temperature cluster from remote to hub, so the hub receives temperature updates
-    "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0402 {${device.zigbeeId}} {}",
-
     // Bind the outgoing on/off cluster from remote to hub, so remote sends hub messages when On/Off buttons pushed
     "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0006 {${device.zigbeeId}} {}",
 
     // Bind the outgoing level cluster from remote to hub, so remote sends hub messages when Dim Up/Down buttons pushed
     "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0008 {${device.zigbeeId}} {}",
+    
+    // Bind the incoming battery info cluster from remote to hub, so the hub receives battery updates
+    "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0020 {${device.zigbeeId}} {}",
+
+    // Bind the incoming temperature cluster from remote to hub, so the hub receives temperature updates
+    "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0402 {${device.zigbeeId}} {}",
   ]
   return configCmds
 }
