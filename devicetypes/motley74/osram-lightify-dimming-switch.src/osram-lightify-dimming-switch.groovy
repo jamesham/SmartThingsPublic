@@ -16,62 +16,60 @@
  *
  */
 metadata {
-	definition (name: "OSRAM Lightify Dimming Switch", namespace: "motley74", author: "Michael Hudson") {
-		capability "Actuator"
-        capability "Button"
-		capability "Configuration"
-        capability "Refresh"
-        capability "Sensor"
-		//capability "Switch"
-		//capability "Switch Level"
+  definition (name: "OSRAM Lightify Dimming Switch", namespace: "motley74", author: "Michael Hudson") {
+    capability "Actuator"
+    capability "Button"
+    capability "Configuration"
+    capability "Refresh"
+    capability "Sensor"
+    //capability "Switch"
+    //capability "Switch Level"
 
-		fingerprint profileId: "0104", deviceId: "0001", inClusters: "0000, 0001, 0003, 0020, 0402, 0B05", outClusters: "0003, 0006, 0008, 0019" //, manufacturer: "OSRAM", model: "Lightify 2.4GHZZB/SWITCH/LFY", deviceJoinName: "OSRAM Lightify Dimming Switch"
-	}
+    fingerprint profileId: "0104", deviceId: "0001", inClusters: "0000, 0001, 0003, 0020, 0402, 0B05", outClusters: "0003, 0006, 0008, 0019" //, manufacturer: "OSRAM", model: "Lightify 2.4GHZZB/SWITCH/LFY", deviceJoinName: "OSRAM Lightify Dimming Switch"
+  }
 
-	simulator {
-		// TODO: define status and reply messages here
-	}
+  simulator {
+    // TODO: define status and reply messages here
+  }
 
-	tiles {
-      tiles {
-		standardTile("button", "device.button", width: 2, height: 2) {
-			state "default", label: "", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#ffffff"
-		}
-		main "button"
-		details(["button"])
-	  }
-	}
+  tiles {
+    tiles {
+      standardTile("button", "device.button", width: 2, height: 2) {
+        state "default", label: "", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#ffffff"
+      }
+      main "button"
+      details(["button"])
+    }
+  }
 }
 
 def getClusters() { 
-     "zdo active 0x${device.deviceNetworkId}" 
-       log.debug "Get Clusters Called";
+  "zdo active 0x${device.deviceNetworkId}" 
+  log.debug "Get Clusters Called";
 }
 
 def parse(String description) {
-	log.debug "parse description: $description"
+  log.debug "parse description: $description"
     
-    // Create a map from the raw zigbee message to make parsing more intuitive
-    def msg = zigbee.parse(description)
+  // Create a map from the raw zigbee message to make parsing more intuitive
+  def msg = zigbee.parse(description)
 }
 
 
 // handle commands
 def configure() {
-	log.debug "Executing 'configure'"
-	
-    //String zigbeeId = swapEndianHex(device.hub.zigbeeId)
-	log.debug "Confuguring Bindings."
-	def configCmds = [	
-		
-		// Bind the outgoing on/off cluster from remote to hub, so remote sends hub messages when On/Off buttons pushed
-        //"zdo bind 0x${device.deviceNetworkId} 1 1 6 {${device.zigbeeId}} {}", "delay 1000",
-    	"zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0006 {${device.zigbeeId}} {}",
-		
-		// Bind the outgoing level cluster from remote to hub, so remote sends hub messages when Dim Up/Down buttons pushed
-		//"zdo bind 0x${device.deviceNetworkId} 1 1 8 {${device.zigbeeId}} {}", "delay 500",
-    	"zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0008 {${device.zigbeeId}} {}",
-        
-	]
-    return configCmds
+  log.debug "Executing 'configure'"
+
+  //String zigbeeId = swapEndianHex(device.hub.zigbeeId)
+  log.debug "Confuguring Bindings."
+  def configCmds = [	
+    // Bind the outgoing on/off cluster from remote to hub, so remote sends hub messages when On/Off buttons pushed
+    //"zdo bind 0x${device.deviceNetworkId} 1 1 6 {${device.zigbeeId}} {}", "delay 1000",
+    "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0006 {${device.zigbeeId}} {}",
+
+    // Bind the outgoing level cluster from remote to hub, so remote sends hub messages when Dim Up/Down buttons pushed
+    //"zdo bind 0x${device.deviceNetworkId} 1 1 8 {${device.zigbeeId}} {}", "delay 500",
+    "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0008 {${device.zigbeeId}} {}",
+  ]
+  return configCmds
 }
