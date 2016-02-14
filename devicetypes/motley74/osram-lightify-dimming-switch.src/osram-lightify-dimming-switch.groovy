@@ -22,8 +22,6 @@ metadata {
     capability "Configuration"
     capability "Refresh"
     capability "Sensor"
-    //capability "Switch"
-    //capability "Switch Level"
 
     fingerprint profileId: "0104", deviceId: "0001", inClusters: "0000, 0001, 0003, 0020, 0402, 0B05", outClusters: "0003, 0006, 0008, 0019" //, manufacturer: "OSRAM", model: "Lightify 2.4GHZZB/SWITCH/LFY", deviceJoinName: "OSRAM Lightify Dimming Switch"
   }
@@ -77,22 +75,30 @@ def configure() {
 def lightPower(command) {
   if (command==0) {
     log.debug "Turning light(s) off."
-    //TODO: Create power off event
+    def result = createEvent(name: "button", value: "pushed", data: [buttonNumber: 1], descriptionText: "$device.displayName button 1 was pushed", isStateChange: true)
+    log.debug "Parse returned ${result?.descriptionText}"
   } else {
     log.debug "Turning light(s) on."
-    //TODO: Create power on event
+    def result = createEvent(name: "button", value: "pushed", data: [buttonNumber: 2], descriptionText: "$device.displayName button 2 was pushed", isStateChange: true)
+    log.debug "Parse returned ${result?.descriptionText}"
   }
 }
 
 def lightLevel(command, data) {
   if (command==1) {
-    log.debug "Increasing light(s) brightness."
-    //TODO: Create light level decrease action 
-  } else if (command==5) {
     log.debug "Decreasing light(s) brightness."
-    //TODO: Create light level increase action
+    def result = createEvent(name: "button", value: "held", data: [buttonNumber: 1], descriptionText: "$device.displayName button 1 was held", isStateChange: true)
+    log.debug "Parse returned ${result?.descriptionText}"
+    return result
+  } else if (command==5) {
+    log.debug "Increasing light(s) brightness."
+    def result = createEvent(name: "button", value: "held", data: [buttonNumber: 2], descriptionText: "$device.displayName button 2 was held", isStateChange: true)
+    log.debug "Parse returned ${result?.descriptionText}"
+    return result
   } else {
     log.debug "Stopping brightness change."
-    //TODO: Create light level stop action
+    def result = createEvent(name: "button", value: "released", data: [buttonNumber: [1, 2]], descriptionText: "$device.displayName button 1 or 2 was released", isStateChange: true)
+    log.debug "Parse returned ${result?.descriptionText}"
+    return result
   }
 }
