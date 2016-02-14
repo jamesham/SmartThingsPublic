@@ -43,34 +43,56 @@ metadata {
   }
 }
 
-def getClusters() { 
-  log.debug "Get Clusters Called";
-  
-  "zdo active 0x${device.deviceNetworkId}" 
-}
-
 def parse(String description) {
   log.debug "parse description: $description"
     
   // Create a map from the raw zigbee message to make parsing more intuitive
   def msg = zigbee.parse(description)
+  log.debug msg
+  
+  // Call proper method based on command received
+  log.debug "Command is $msg.command and data is $msg.data"
+  if ((msg.command==0) || (msg.command==1 && !msg.data)) {
+    lightPower(msg.command)
+  } else if ((msg.command==1 && msg.data) || (msg.command==5 || msg.command==3)) {
+    lightLevel(msg.command, msg.data)
+  } else {
+    log.warn "Unknown command/data sequence received! Command: $msg.command Data: $msg.data"
+  }
 }
 
-
-// handle commands
 def configure() {
   log.debug "Executing 'configure'"
 
-  //String zigbeeId = swapEndianHex(device.hub.zigbeeId)
-  log.debug "Confuguring Bindings."
   def configCmds = [	
     // Bind the outgoing on/off cluster from remote to hub, so remote sends hub messages when On/Off buttons pushed
-    //"zdo bind 0x${device.deviceNetworkId} 1 1 6 {${device.zigbeeId}} {}", "delay 1000",
     "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0006 {${device.zigbeeId}} {}",
 
     // Bind the outgoing level cluster from remote to hub, so remote sends hub messages when Dim Up/Down buttons pushed
-    //"zdo bind 0x${device.deviceNetworkId} 1 1 8 {${device.zigbeeId}} {}", "delay 500",
     "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0008 {${device.zigbeeId}} {}",
   ]
   return configCmds
+}
+
+def lightPower(command) {
+  if (command==0) {
+    log.debug "Turning light(s) off."
+    //TODO: Create power off event
+  } else {
+    log.debug "Turning light(s) on."
+    //TODO: Create power on event
+  }
+}
+
+def lightLevel(command, data) {
+  if (command==1) {
+    log.debug "Increasing light(s) brightness."
+    //TODO: Create light level decrease action 
+  } else if (command==5) {
+    log.debug "Decreasing light(s) brightness."
+    //TODO: Create light level increase action
+  } else {
+    log.debug "Stopping brightness change."
+    //TODO: Create light level stop action
+  }
 }
