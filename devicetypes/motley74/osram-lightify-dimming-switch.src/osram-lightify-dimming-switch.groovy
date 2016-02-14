@@ -44,8 +44,9 @@ metadata {
 }
 
 def getClusters() { 
-  "zdo active 0x${device.deviceNetworkId}" 
   log.debug "Get Clusters Called";
+  
+  "zdo active 0x${device.deviceNetworkId}" 
 }
 
 def parse(String description) {
