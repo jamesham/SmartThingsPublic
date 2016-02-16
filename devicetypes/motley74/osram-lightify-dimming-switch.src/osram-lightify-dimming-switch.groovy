@@ -53,13 +53,23 @@ def parse(String description) {
   if (description?.startsWith('catchall:')) {
     map = parseCatchAllMessage(description)
   } else if (description?.startsWith('read')) {
-    def msg = zigbee.parseDescriptionAsMap(description)
-    log.debug msg
-    map = getBatteryResult(Integer.parseInt(msg.value, 16))
+    map = parseReadMessage(description)
   } else {
     log.debug "Unknown message received, parsed message: $msg"
   }
   return map ? createEvent(map) : null
+}
+
+private Map parseReadMessage(String description) {
+  Map resultMap = [:]
+  // Create a map from the message description to make parsing more intuitive
+  def msg = zigbee.parseDescriptionAsMap(description)
+  if (msg.clusterInt==1 && msg.attrInt==32) {
+    resultMap = getBatteryResult(Integer.parseInt(msg.value, 16))
+  } else {
+    log.debug "Unknown read message received, parsed message: $msg"
+  }
+  return resultMap
 }
 
 private Map parseCatchAllMessage(String description) {
@@ -69,15 +79,15 @@ private Map parseCatchAllMessage(String description) {
   log.debug msg
   switch(msg.clusterId) {
     case 1:
-      log.debug 'BATTERY'
+      log.debug 'BATTERY MESSAGE'
       resultMap = getBatteryResult(Integer.parseInt(msg.value, 16))
       break
     case [6, 8]:
-      log.debug 'CONTROL'
+      log.debug 'CONTROL MESSAGE'
       resultMap = lightEvent(msg.command, msg.data)
       break
     default:
-      log.debug "Unknown catchall message received!\n$msg"
+      log.debug "Unknown catchall message received! $msg"
   }
   return resultMap
 }
@@ -86,10 +96,10 @@ def configure() {
   log.debug "Executing 'configure'"
 
   def configCmds = [	
-    // Bind the outgoing on/off cluster from remote to hub, so remote sends hub messages when On/Off buttons pushed
+    // Bind the outgoing on/off cluster from remote to hub, so the hub receives messages when On/Off buttons pushed
     "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0006 {${device.zigbeeId}} {}",
 
-    // Bind the outgoing level cluster from remote to hub, so remote sends hub messages when Dim Up/Down buttons pushed
+    // Bind the outgoing level cluster from remote to hub, so the hub receives messages when Dim Up/Down buttons pushed
     "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0008 {${device.zigbeeId}} {}",
     
     // Bind the incoming battery info cluster from remote to hub, so the hub receives battery updates
@@ -106,9 +116,9 @@ private lightEvent(command, data) {
   Map resultMap = [:]
   switch(command) {
     case 0: //off command
-      log.debug 'Creating POWER OFF event'
+      //log.debug 'Creating POWER OFF event'
       resultMap = [
-        name: 'button 1',
+        name: 'button',
         value: 'pressed',
         data: [buttonNumber: 1],
         descriptionText: "$device.displayName button 1 was pressed"
@@ -116,17 +126,17 @@ private lightEvent(command, data) {
     break
     case 1: //on and brightness decrease command
       if (data) {
-        log.debug 'Creating BRIGHTNESS DECREASE event'
+        //log.debug 'Creating BRIGHTNESS DECREASE event'
         resultMap = [
-          name: 'button 1',
+          name: 'button',
           value: 'held',
           data: [buttonNumber: 1],
           descriptionText: "$device.displayName button 1 was held"
         ]
       } else {
-        log.debug 'Creating POWER ON event'
+        //log.debug 'Creating POWER ON event'
         resultMap = [
-          name: 'button 2',
+          name: 'button',
           value: 'pressed',
           data: [buttonNumber: 2],
           descriptionText: "$device.displayName button 2 was pressed"
@@ -134,7 +144,7 @@ private lightEvent(command, data) {
       }
     break
     case 3: //brightness change stop command
-      log.debug 'Creating BRIGHTNESS STOP event'
+      //log.debug 'Creating BRIGHTNESS STOP event'
       resultMap = [
         name: 'button',
         value: 'released',
@@ -143,9 +153,9 @@ private lightEvent(command, data) {
       ]
     break
     case 5: //brightness increase command
-      log.debug 'Creating BRIGHTNESS INCREASE event'
+      //log.debug 'Creating BRIGHTNESS INCREASE event'
       resultMap = [
-        name: 'button 2',
+        name: 'button',
         value: 'held',
         data: [buttonNumber: 2],
         descriptionText: "$device.displayName button 2 was pressed"
@@ -161,7 +171,6 @@ private Map getBatteryResult(rawValue) {
     name: 'battery',
     value: '--'
   ]
-  log.debug rawValue
   def volts = rawValue / 10
   def descriptionText
   if (rawValue == 0) {
