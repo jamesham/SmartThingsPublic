@@ -101,10 +101,10 @@ private Map parseCatchAllMessage(String description) {
       log.debug 'CONTROL'
       resultMap = lightEvent(msg.command, msg.data)
       break
-    case 32:
-      log.debug 'BATTERY'
-      resultMap = getBatteryResult(msg.value)
-      break
+    //case 32:
+    //  log.debug 'BATTERY'
+    //  resultMap = getBatteryResult(msg.value)
+    //  break
     case 1026:
       log.debug 'TEMPERATURE'
       // temp is last 2 data values. reverse to swap endian
@@ -129,7 +129,7 @@ def configure() {
     "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0008 {${device.zigbeeId}} {}",
     
     // Bind the incoming battery info cluster from remote to hub, so the hub receives battery updates
-    "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0020 {${device.zigbeeId}} {}",
+    //"zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0020 {${device.zigbeeId}} {}",
 
     // Bind the incoming temperature cluster from remote to hub, so the hub receives temperature updates
     "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0402 {${device.zigbeeId}} {}",
@@ -175,7 +175,6 @@ private Map getBatteryResult(rawValue) {
     name: 'battery',
     value: '--'
   ]
-  log.debug rawValue
   def volts = rawValue / 10
   def descriptionText
   if (rawValue == 0) {
@@ -195,14 +194,13 @@ private Map getBatteryResult(rawValue) {
 
 def getTemperature(value) {
   def celsius = Integer.parseInt("$value", 16).shortValue() / 100
-  log.debug "Original value is $value and calculated celcius is $celsius"
   if(getTemperatureScale() == "C"){
+    log.debug "Calculated celcius value is $celsius"
     return celsius
   } else {
     def fahrenheit = celsiusToFahrenheit(celsius) as Integer
-    log.debug "Calculated fahrenheiht is $fahrenheit"
+    log.debug "Calculated fahrenheit value is $fahrenheit"
     return fahrenheit
-    //return celsiusToFahrenheit(celsius) as Integer
   }
 }
 
