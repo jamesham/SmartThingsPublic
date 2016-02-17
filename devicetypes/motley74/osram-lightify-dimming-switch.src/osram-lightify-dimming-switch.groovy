@@ -24,7 +24,7 @@ metadata {
     capability "Refresh"
     capability "Sensor"
 
-    fingerprint profileId: "0104", deviceId: "0001", inClusters: "0000, 0001, 0003, 0020, 0402, 0B05", outClusters: "0003, 0006, 0008, 0019", manufacturer: "OSRAM" /*, model: "Lightify 2.4GHZZB/SWITCH/LFY" */, deviceJoinName: "OSRAM Lightify Dimming Switch"
+    fingerprint profileId: "0104", deviceId: "0001", inClusters: "0000, 0001, 0003, 0020, 0402, 0B05", outClusters: "0003, 0006, 0008, 0019", /*manufacturer: "OSRAM", model: "Lightify 2.4GHZZB/SWITCH/LFY", */deviceJoinName: "OSRAM Lightify Dimming Switch"
   }
 
   simulator {
