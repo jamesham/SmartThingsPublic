@@ -17,7 +17,7 @@ definition(
     name: "OSRAM Lightify Dimming Switch Binder",
     namespace: "motley74",
     author: "Michael Hudson",
-    description: "Used to bind dimmable lights/switches in ST to the buttons on a OSRAM Lightify Dimming Switch",
+    description: "Use to bind dimmable lights/switches in ST to the buttons on a OSRAM Lightify Dimming Switch",
     category: "Convenience",
     iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
     iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png",
@@ -54,18 +54,24 @@ def initialize() {
 }
 
 def buttonPressedHandler(evt) {
-  log.debug "buttonPressedHandler invoked with ${evt.descriptionText}"
-  log.debug "buttonPressedHandler invoked with ${evt.data}"
-  log.debug "buttonPressedHandler invoked with ${evt.data.buttonNumber}"
-  //if (evt.data.buttonNumber==1) {
-  //  targets.off()
-  //} else {
-  //  targets.on()
-  //}
+  def buttonNumber = parseJson(evt.data)?.buttonNumber
+  if (buttonNumber==1) {
+    targets.setLevel(0)
+  } else {
+    targets.setLevel(100)
+  }
 }
 
 def buttonHeldHandler(evt) {
   log.debug "buttonHeldHandler invoked with ${evt.data}"
+  def buttonNumber = parseJson(evt.data)?.buttonNumber
+  def levelDirection = parseJson(evt.data)?.levelData[0]
+  def levelStep = parseJson(evt.data)?.levelData[1]
+  if (buttonNumber==1) {
+    targets.setLevel(30)
+  } else {
+    targets.setLevel(70)
+  }
 }
 
 def buttonReleasedHandler(evt) {
