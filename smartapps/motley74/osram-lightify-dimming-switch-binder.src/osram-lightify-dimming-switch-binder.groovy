@@ -27,10 +27,16 @@ definition(
 
 preferences {
   section("Which OSRAM Lightify Dimming Switch..."){
-    input "switch1", "capability.button", title: "Which switch?", required: true
+    input(name: "switch1", type: "capability.button", title: "Which switch?", required: true)
   }
   section("Which device(s) to control..."){
-    input "targets", "capability.switch", title: "Which Target(s)?", multiple: true, required: true
+    input(name: "targets", type: "capability.switch", title: "Which Target(s)?", multiple: true, required: true)
+  }
+  section("Set level for button 1 hold..."){
+    input(name: "downLevel", type: "number", range: "10..90", title: "Button 1 level?", multiple: true, required: true)
+  }
+  section("Set level for button 2 hold..."){
+    input(name: "upLevel", type: "number", range: "10..90", title: "Button 2 level?", multiple: true, required: true)
   }
 }
 
@@ -68,9 +74,11 @@ def buttonHeldHandler(evt) {
   def levelDirection = parseJson(evt.data)?.levelData[0]
   def levelStep = parseJson(evt.data)?.levelData[1]
   if (buttonNumber==1) {
-    targets.setLevel(30)
+    log.debug "Setting brightness to ${downLevel}"
+    targets.setLevel(downlevel)
   } else {
-    targets.setLevel(70)
+    log.debug "Setting brightness to ${upLevel}"
+    targets.setLevel(upLevel[0])
   }
 }
 
