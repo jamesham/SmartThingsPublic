@@ -54,6 +54,8 @@ def initialize() {
 }
 
 def buttonPressedHandler(evt) {
+  log.debug "buttonPressedHandler invoked with ${evt.descriptionText}"
+  log.debug "buttonPressedHandler invoked with ${evt.data}"
   log.debug "buttonPressedHandler invoked with ${evt.data.buttonNumber}"
   //if (evt.data.buttonNumber==1) {
   //  targets.off()
