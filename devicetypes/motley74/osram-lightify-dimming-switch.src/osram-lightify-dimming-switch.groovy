@@ -24,7 +24,7 @@ metadata {
     capability "Refresh"
     capability "Sensor"
 
-    fingerprint profileId: "0104", deviceId: "0001", inClusters: "0000, 0001, 0003, 0020, 0402, 0B05", outClusters: "0003, 0006, 0008, 0019" //, manufacturer: "OSRAM", model: "Lightify 2.4GHZZB/SWITCH/LFY", deviceJoinName: "OSRAM Lightify Dimming Switch"
+    fingerprint profileId: "0104", deviceId: "0001", inClusters: "0000, 0001, 0003, 0020, 0402, 0B05", outClusters: "0003, 0006, 0008, 0019", manufacturer: "OSRAM" /*, model: "Lightify 2.4GHZZB/SWITCH/LFY" */, deviceJoinName: "OSRAM Lightify Dimming Switch"
   }
 
   simulator {
@@ -130,7 +130,7 @@ private lightEvent(command, data) {
         resultMap = [
           name: 'button',
           value: 'held',
-          data: [buttonNumber: 1],
+          data: [buttonNumber: 1, levelData: data],
           descriptionText: "$device.displayName button 1 was held"
         ]
       } else {
@@ -157,7 +157,7 @@ private lightEvent(command, data) {
       resultMap = [
         name: 'button',
         value: 'held',
-        data: [buttonNumber: 2],
+        data: [buttonNumber: 2, levelData: data],
         descriptionText: "$device.displayName button 2 was pressed"
       ]
     break
