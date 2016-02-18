@@ -74,11 +74,11 @@ def buttonHeldHandler(evt) {
   def levelDirection = parseJson(evt.data)?.levelData[0]
   def levelStep = parseJson(evt.data)?.levelData[1]
   if (buttonNumber==1) {
-    log.debug "Setting brightness to ${downLevel}"
-    targets.setLevel(downlevel)
+    log.debug "Setting brightness to 30"
+    targets.setLevel(30)
   } else {
-    log.debug "Setting brightness to ${upLevel}"
-    targets.setLevel(upLevel[0])
+    log.debug "Setting brightness to 70"
+    targets.setLevel(70)
   }
 }
 
