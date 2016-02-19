@@ -30,7 +30,7 @@ metadata {
   simulator {
     // TODO: define status and reply messages here
   }
-  
+  //define the tiles for the device
   tiles(scale: 2) {
     standardTile("button", "device.button", width: 6, height: 4) {
       state "default", label: "", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#ffffff"
@@ -49,14 +49,16 @@ metadata {
 def parse(String description) {
   Map map = [:]
   log.debug "parse description: $description"
-  // Call proper method based on command received
   if (description?.startsWith('catchall:')) {
+    //call parseCatchAllMessage to parse the catchall message received
     map = parseCatchAllMessage(description)
   } else if (description?.startsWith('read')) {
+    //call parseReadMessage to parse the read message received
     map = parseReadMessage(description)
   } else {
     log.debug "Unknown message received, parsed message: $msg"
   }
+  //return event unless map is not set
   return map ? createEvent(map) : null
 }
 
@@ -65,10 +67,12 @@ private Map parseReadMessage(String description) {
   // Create a map from the message description to make parsing more intuitive
   def msg = zigbee.parseDescriptionAsMap(description)
   if (msg.clusterInt==1 && msg.attrInt==32) {
+    //call getBatteryResult method to parse battery message into event map
     resultMap = getBatteryResult(Integer.parseInt(msg.value, 16))
   } else {
     log.debug "Unknown read message received, parsed message: $msg"
   }
+  //return map used to create event
   return resultMap
 }
 
@@ -79,16 +83,19 @@ private Map parseCatchAllMessage(String description) {
   log.debug msg
   switch(msg.clusterId) {
     case 1:
+      //call getBatteryResult method to parse battery message into event map
       log.debug 'BATTERY MESSAGE'
       resultMap = getBatteryResult(Integer.parseInt(msg.value, 16))
       break
     case [6, 8]:
+      //call lightEvent method to parse control message into event map
       log.debug 'CONTROL MESSAGE'
       resultMap = lightEvent(msg.command, msg.data)
       break
     default:
       log.debug "Unknown catchall message received! $msg"
   }
+  //return map used to create event
   return resultMap
 }
 
@@ -109,6 +116,7 @@ def configure() {
 }
 
 def refresh() {
+  //when refresh button is pushed, read updated battery information
   return zigbee.readAttribute(0x0001, 0x0020)
 }
 
@@ -162,9 +170,11 @@ private lightEvent(command, data) {
       ]
     break
   }
+  //return the map used to create button event
   return resultMap
 }
 
+//obtained from other examples, converts battery message into event map
 private Map getBatteryResult(rawValue) {
   def linkText = getLinkText(device)
   def result = [
