@@ -33,10 +33,10 @@ preferences {
     input(name: "targets", type: "capability.switch", title: "Which Target(s)?", multiple: true, required: true)
   }
   section("Set level for button 1 hold..."){
-    input(name: "downLevel", type: "number", range: "10..90", title: "Button 1 level?",  required: true)
+    input(name: "upLevel", type: "number", range: "10..90", title: "Button 1 level?",  required: true)
   }
   section("Set level for button 2 hold..."){
-    input(name: "upLevel", type: "number", range: "10..90", title: "Button 2 level?",  required: true)
+    input(name: "downLevel", type: "number", range: "10..90", title: "Button 2 level?",  required: true)
   }
 }
 
@@ -74,11 +74,11 @@ def buttonHeldHandler(evt) {
   //def levelDirection = parseJson(evt.data)?.levelData[0]
   //def levelStep = parseJson(evt.data)?.levelData[1]
   if (buttonNumber==1) {
-    log.debug "Button 1 held (Setting brightness to 70)"
-    targets.setLevel(70)
+    log.debug "Button 1 held (Setting brightness to $upLevel)"
+    targets.setLevel(upLevel)
   } else {
-    log.debug "Button 2 held (Setting brightness to 30)"
-    targets.setLevel(30)
+    log.debug "Button 2 held (Setting brightness to $downLevel)"
+    targets.setLevel(downLevel)
   }
 }
 
