@@ -1,20 +1,21 @@
 /**
- *  OSRAM Lightify Dimming Switch
- *
- *  Copyright 2016 Michael Hudson
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
- *  in compliance with the License. You may obtain a copy of the License at:
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
- *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
- *  for the specific language governing permissions and limitations under the License.
- *
- *  Thanks to @Sticks18 for the Hue Dimmer remote code used as a base for this!
- *
- */
+*  OSRAM Lightify Dimming Switch
+*
+*  Copyright 2016 Michael Hudson
+*
+*  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+*  in compliance with the License. You may obtain a copy of the License at:
+*
+*      http://www.apache.org/licenses/LICENSE-2.0
+*
+*  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
+*  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
+*  for the specific language governing permissions and limitations under the License.
+*
+*  Thanks to @Sticks18 for the Hue Dimmer remote code used as a base for this!
+*
+*/
+
 metadata {
   definition (name: "OSRAM Lightify Dimming Switch", namespace: "motley74", author: "Michael Hudson") {
     capability "Actuator"
@@ -23,14 +24,19 @@ metadata {
     capability "Configuration"
     capability "Refresh"
     capability "Sensor"
-
+       
+    attribute "zMessage", "String"
+       
     fingerprint profileId: "0104", deviceId: "0001", inClusters: "0000, 0001, 0003, 0020, 0402, 0B05", outClusters: "0003, 0006, 0008, 0019", /*manufacturer: "OSRAM", model: "Lightify 2.4GHZZB/SWITCH/LFY", */deviceJoinName: "OSRAM Lightify Dimming Switch"
   }
 
+  // simulator metadata
   simulator {
-    // TODO: define status and reply messages here
+    // status messages
+ 
   }
-  //define the tiles for the device
+
+  // UI tile definitions
   tiles(scale: 2) {
     standardTile("button", "device.button", width: 6, height: 4) {
       state "default", label: "", icon: "st.unknown.zwave.remote-controller", backgroundColor: "#ffffff"
@@ -46,63 +52,28 @@ metadata {
   }
 }
 
+// Parse incoming device messages to generate events
 def parse(String description) {
   Map map = [:]
   log.debug "parse description: $description"
   if (description?.startsWith('catchall:')) {
-    //call parseCatchAllMessage to parse the catchall message received
+    // call parseCatchAllMessage to parse the catchall message received
     map = parseCatchAllMessage(description)
   } else if (description?.startsWith('read')) {
-    //call parseReadMessage to parse the read message received
+    // call parseReadMessage to parse the read message received
     map = parseReadMessage(description)
   } else {
-    log.debug "Unknown message received, parsed message: $msg"
+    log.debug "Unknown message received: $description"
   }
   //return event unless map is not set
   return map ? createEvent(map) : null
 }
 
-private Map parseReadMessage(String description) {
-  Map resultMap = [:]
-  // Create a map from the message description to make parsing more intuitive
-  def msg = zigbee.parseDescriptionAsMap(description)
-  if (msg.clusterInt==1 && msg.attrInt==32) {
-    //call getBatteryResult method to parse battery message into event map
-    resultMap = getBatteryResult(Integer.parseInt(msg.value, 16))
-  } else {
-    log.debug "Unknown read message received, parsed message: $msg"
-  }
-  //return map used to create event
-  return resultMap
-}
-
-private Map parseCatchAllMessage(String description) {
-  Map resultMap = [:]
-  // Create a map from the raw zigbee message to make parsing more intuitive
-  def msg = zigbee.parse(description)
-  log.debug msg
-  switch(msg.clusterId) {
-    case 1:
-      //call getBatteryResult method to parse battery message into event map
-      log.debug 'BATTERY MESSAGE'
-      resultMap = getBatteryResult(Integer.parseInt(msg.value, 16))
-      break
-    case [6, 8]:
-      //call lightEvent method to parse control message into event map
-      log.debug 'CONTROL MESSAGE'
-      resultMap = lightEvent(msg.command, msg.data)
-      break
-    default:
-      log.debug "Unknown catchall message received! $msg"
-  }
-  //return map used to create event
-  return resultMap
-}
-
 def configure() {
-  log.debug "Executing 'configure'"
-
-  def configCmds = [	
+  log.debug "configure"
+  String zigbeeId = swapEndianHex(device.hub.zigbeeId)
+  log.debug "Confuguring Reporting and Bindings."
+  def configCmds = [         
     // Bind the outgoing on/off cluster from remote to hub, so the hub receives messages when On/Off buttons pushed
     "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0006 {${device.zigbeeId}} {}",
 
@@ -112,7 +83,7 @@ def configure() {
     // Bind the incoming battery info cluster from remote to hub, so the hub receives battery updates
     "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0001 {${device.zigbeeId}} {}",
   ]
-  return configCmds
+  return configCmds 
 }
 
 def refresh() {
@@ -120,58 +91,82 @@ def refresh() {
   return zigbee.readAttribute(0x0001, 0x0020)
 }
 
-private lightEvent(command, data) {
-  Map resultMap = [:]
-  switch(command) {
-    case 0: //off command
-      //log.debug 'Creating POWER OFF event'
-      resultMap = [
+private Map parseReadMessage(String description) {
+  // Create a map from the message description to make parsing more intuitive
+  def msg = zigbee.parseDescriptionAsMap(description)
+  //def msg = zigbee.parse(description)
+  if (msg.clusterInt==1 && msg.attrInt==32) {
+    // call getBatteryResult method to parse battery message into event map
+    def result = getBatteryResult(Integer.parseInt(msg.value, 16))
+  } else {
+    log.debug "Unknown read message received, parsed message: $msg"
+  }
+  // return map used to create event
+  return result
+}
+
+private Map parseCatchAllMessage(String description) {
+  // Create a map from the raw zigbee message to make parsing more intuitive
+  def msg = zigbee.parse(description)
+  log.debug msg
+  switch(msg.clusterId) {
+    case 1:
+      // call getBatteryResult method to parse battery message into event map
+      log.debug 'BATTERY MESSAGE'
+      def result = getBatteryResult(Integer.parseInt(msg.value, 16))
+      break
+    case 6:
+      def button = (msg.command == 1 ? 1 : 2)
+      Map result = [:]
+      result = [
         name: 'button',
         value: 'pressed',
-        data: [buttonNumber: 1],
-        descriptionText: "$device.displayName button 1 was pressed"
+        data: [buttonNumber: button],
+        descriptionText: "$device.displayName button $button was pressed",
+        isStateChange: true
       ]
-    break
-    case 1: //on and brightness decrease command
-      if (data) {
-        //log.debug 'Creating BRIGHTNESS DECREASE event'
-        resultMap = [
-          name: 'button',
-          value: 'held',
-          data: [buttonNumber: 1, levelData: data],
-          descriptionText: "$device.displayName button 1 was held"
-        ]
-      } else {
-        //log.debug 'Creating POWER ON event'
-        resultMap = [
-          name: 'button',
-          value: 'pressed',
-          data: [buttonNumber: 2],
-          descriptionText: "$device.displayName button 2 was pressed"
-        ]
+      log.debug "Parse returned ${result?.descriptionText}"
+      return result
+      break
+    case 8:
+      switch(msg.command) {
+        case 1: // brightness decrease commandA
+          Map result = [:]
+          result = [
+            name: 'button',
+            value: 'held',
+            data: [buttonNumber: 2],
+            descriptionText: "$device.displayName button 2 was held",
+            isStateChange: true
+          ]
+          log.debug "Parse returned ${result?.descriptionText}"
+          return result
+          break
+        case 3: // brightness change stop command
+          //def result = [
+          //  name: 'button',
+          //  value: 'released',
+          //  data: [buttonNumber: [1,2]],
+          //  descriptionText: "$device.displayName button was released",
+          //  isStateChange: true
+          //]
+          log.debug "Recieved stop command, not currently implemented!"
+          //return result
+          break
+        case 5: // brightness increase command
+          Map result = [:]
+          result = [
+            name: 'button',
+            value: 'held',
+            data: [buttonNumber: 1],
+            descriptionText: "$device.displayName button 1 was held",
+            isStateChange: true
+          ]
+          log.debug "Parse returned ${result?.descriptionText}"
+          return result
+          break
       }
-    break
-    case 3: //brightness change stop command
-      //log.debug 'Creating BRIGHTNESS STOP event'
-      resultMap = [
-        name: 'button',
-        value: 'released',
-        data: [buttonNumber: [1, 2]],
-        descriptionText: "$device.displayName button 1 or 2 was released"
-      ]
-    break
-    case 5: //brightness increase command
-      //log.debug 'Creating BRIGHTNESS INCREASE event'
-      resultMap = [
-        name: 'button',
-        value: 'held',
-        data: [buttonNumber: 2, levelData: data],
-        descriptionText: "$device.displayName button 2 was pressed"
-      ]
-    break
   }
-  //return the map used to create button event
-  return resultMap
 }
 
 //obtained from other examples, converts battery message into event map
@@ -195,5 +190,10 @@ private Map getBatteryResult(rawValue) {
       result.descriptionText = "${linkText} battery was ${result.value}%"
     }
   }
+  log.debug "Parse returned ${result?.descriptionText}"
   return result
+}
+
+private String swapEndianHex(String hex) {
+  reverseArray(hex.decodeHex()).encodeHex()
 }
