@@ -54,32 +54,34 @@ def updated() {
 def initialize() {
   subscribe(switch1, "button.pressed", buttonPressedHandler)
   subscribe(switch1, "button.held", buttonHeldHandler)
-  subscribe(switch1, "button.released", buttonReleasedHandler)
+  //subscribe(switch1, "button.released", buttonReleasedHandler)
 }
 
 def buttonPressedHandler(evt) {
   def buttonNumber = parseJson(evt.data)?.buttonNumber
   if (buttonNumber==1) {
-    targets.setLevel(0)
-  } else {
+    log.debug "Button 1 pressed (on)"
     targets.setLevel(100)
+  } else {
+    log.debug "Button 2 pressed (off)"
+    targets.setLevel(0)
   }
 }
 
 def buttonHeldHandler(evt) {
   log.debug "buttonHeldHandler invoked with ${evt.data}"
   def buttonNumber = parseJson(evt.data)?.buttonNumber
-  def levelDirection = parseJson(evt.data)?.levelData[0]
-  def levelStep = parseJson(evt.data)?.levelData[1]
+  //def levelDirection = parseJson(evt.data)?.levelData[0]
+  //def levelStep = parseJson(evt.data)?.levelData[1]
   if (buttonNumber==1) {
-    log.debug "Setting brightness to 30"
-    targets.setLevel(30)
-  } else {
-    log.debug "Setting brightness to 70"
+    log.debug "Button 1 held (Setting brightness to 70)"
     targets.setLevel(70)
+  } else {
+    log.debug "Button 2 held (Setting brightness to 30)"
+    targets.setLevel(30)
   }
 }
 
-def buttonReleasedHandler(evt) {
-  log.debug "buttonReleasedHandler invoked with ${evt.data}"
-}
+//def buttonReleasedHandler(evt) {
+//  log.debug "buttonReleasedHandler invoked with ${evt.data}"
+//}
