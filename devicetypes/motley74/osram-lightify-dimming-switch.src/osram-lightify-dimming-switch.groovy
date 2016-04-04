@@ -70,10 +70,8 @@ def parse(String description) {
 }
 
 def configure() {
-  log.debug "configure"
-  String zigbeeId = swapEndianHex(device.hub.zigbeeId)
   log.debug "Confuguring Reporting and Bindings."
-  def configCmds = [         
+  def configCmds = [
     // Bind the outgoing on/off cluster from remote to hub, so the hub receives messages when On/Off buttons pushed
     "zdo bind 0x${device.deviceNetworkId} 0x01 0x01 0x0006 {${device.zigbeeId}} {}",
 
@@ -87,8 +85,11 @@ def configure() {
 }
 
 def refresh() {
-  //when refresh button is pushed, read updated battery information
-  return zigbee.readAttribute(0x0001, 0x0020)
+  def refreshCmds = [
+    zigbee.readAttribute(0x0001, 0x0020)
+  ]
+  //when refresh button is pushed, read updated status
+  return refreshCmds
 }
 
 private Map parseReadMessage(String description) {
@@ -192,8 +193,4 @@ private Map getBatteryResult(rawValue) {
   }
   log.debug "Parse returned ${result?.descriptionText}"
   return result
-}
-
-private String swapEndianHex(String hex) {
-  reverseArray(hex.decodeHex()).encodeHex()
 }
