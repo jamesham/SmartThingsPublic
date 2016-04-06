@@ -61,10 +61,11 @@ def buttonPressedHandler(evt) {
   def buttonNumber = parseJson(evt.data)?.buttonNumber
   if (buttonNumber==1) {
     log.debug "Button 1 pressed (on)"
+    targets.on()
     targets.setLevel(100)
   } else {
     log.debug "Button 2 pressed (off)"
-    targets.setLevel(0)
+    targets.off()
   }
 }
 
