@@ -121,9 +121,9 @@ private Map parseCatchAllMessage(String description) {
       Map result = [:]
       result = [
         name: 'button',
-        value: 'pressed',
+        value: 'pushed',
         data: [buttonNumber: button],
-        descriptionText: "$device.displayName button $button was pressed",
+        descriptionText: "$device.displayName button $button was pushed",
         isStateChange: true
       ]
       log.debug "Parse returned ${result?.descriptionText}"
@@ -131,7 +131,7 @@ private Map parseCatchAllMessage(String description) {
       break
     case 8:
       switch(msg.command) {
-        case 1: // brightness decrease commandA
+        case 1: // brightness decrease command
           Map result = [:]
           result = [
             name: 'button',
