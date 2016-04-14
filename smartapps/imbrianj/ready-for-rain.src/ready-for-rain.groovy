@@ -64,13 +64,13 @@ def scheduleCheck(evt) {
     def weather  = isStormy(response)
 
     if(weather) {
-      send("${open.join(', ')} ${plural} open and ${weather} coming.")
+      runIn(180, send("${open.join(', ')} ${plural} open and ${weather} coming."))
     }
   }
 
   else if(((now() - (30 * 60 * 1000) <= state.lastCheck["time"]) && state.lastCheck["result"]) && open) {
     log.info("We have fresh weather data, no need to poll.")
-    send("${open.join(', ')} ${plural} open and ${state.lastCheck["result"]} coming.")
+    runIn(180, send("${open.join(', ')} ${plural} open and ${state.lastCheck["result"]} coming."))
   }
 
   else {
@@ -81,23 +81,25 @@ def scheduleCheck(evt) {
 private send(msg) {
   def delay = (messageDelay != null && messageDelay != "") ? messageDelay * 60 * 1000 : 0
 
-  if(now() - delay > state.lastMessage) {
-    state.lastMessage = now()
-    if(sendPushMessage == "Yes") {
-      log.debug("Sending push message.")
-      sendPush(msg)
+  if(open) {
+    if(now() - delay > state.lastMessage) {
+      state.lastMessage = now()
+      if(sendPushMessage == "Yes") {
+        log.debug("Sending push message.")
+        sendPush(msg)
+      }
+
+      if(phone) {
+        log.debug("Sending text message.")
+        sendSms(phone, msg)
+      }
+
+      log.debug(msg)
     }
 
-    if(phone) {
-      log.debug("Sending text message.")
-      sendSms(phone, msg)
+    else {
+      log.info("Have a message to send, but user requested to not get it.")
     }
-
-    log.debug(msg)
-  }
-
-  else {
-    log.info("Have a message to send, but user requested to not get it.")
   }
 }
 
