@@ -148,7 +148,6 @@ private Map parseCatchAllMessage(String description) {
   log.debug "message command: $msg.command"
   log.debug "message data: $msg.data"
 
-  Map result = [:]
   def buttonNumber = 0
 
   switch(msg.sourceEndpoint) {
@@ -166,230 +165,64 @@ private Map parseCatchAllMessage(String description) {
       break
   }
 
+  def state = "unknown"
+
   // on/off
   if (msg.clusterId == 0x0006) {
     if (msg.command == 1) {
-      result = [
-        name: 'button',
-        value: 'on',
-        data: [buttonNumber: buttonNumber],
-        descriptionText: "$device.displayName button $buttonNumber on",
-        isStateChange: true
-      ]
+      state = 'on'
     }
     else if (msg.command == 0) {
-      result = [
-        name: 'button',
-        value: 'off',
-        data: [buttonNumber: buttonNumber],
-        descriptionText: "$device.displayName button $buttonNumber off",
-        isStateChange: true
-      ]
+      state = 'off'
     }
   }
 
   // dimming
   else if (msg.clusterId == 0x0008) {
     if (msg.command==05) {
-      result = [
-        name: 'button',
-        value: 'brighten',
-        data: [buttonNumber: 1],
-        descriptionText: "$device.displayName button 1 brighten",
-        isStateChange: true
-      ]
+      state = 'level up'
     }
     else if (msg.command==01) {
-      result = [
-        name: 'button',
-        value: 'darken',
-        data: [buttonNumber: 1],
-        descriptionText: "$device.displayName button 1 darken",
-        isStateChange: true
-      ]
+      state = 'level down'
     }
     else if (msg.command==03) {
-      result = [
-        name: 'button',
-        value: 'stop',
-        data: [buttonNumber: 1],
-        descriptionText: "$device.displayName button 1 stop",
-        isStateChange: true
-      ]
+      state = 'level stop'
     }
   }
 
-      if (msg.command==01) {
-        result = [
-          name: 'button',
-          value: 'pushed',
-          data: [buttonNumber: 1],
-          descriptionText: "$device.displayName button 1 was pushed",
-          isStateChange: true
-        ]
+  // colour change
+  else if (msg.clusterId == 0x0300) {
+    if (msg.command==0x4C) {
+      if (msg.data[0] == 1) {
+        state = "Step Color Temperature Up"
+      } else if (msg.data[0] == 3) {
+        state = "Step Color Temperature Down"
       }
-      else if (msg.command==05) {
-        result = [
-          name: 'button',
-          value: 'held',
-          data: [buttonNumber: 1],
-          descriptionText: "$device.displayName button 1 was held",
-          isStateChange: true
-        ]
+    }
+    else if (msg.command==03) {
+      def sat = msg.data[0]
+      state = "Move to Saturation $sat"
+    }
+    else if (msg.command==01) {
+      if (msg.data[0] == 0) {
+        state = "Move Hue Stop"
+      } else if (msg.data[0] == 1) {
+        state = "Move Hue Up"
+      } else if (msg.data[0] == 3) {
+        state = "Move Hue Down"
       }
-      else if (msg.command==03) {
-        result = [
-          name: 'button',
-          value: 'stophold',
-          data: [buttonNumber: 1],
-          descriptionText: "$device.displayName button 1 stopped being held",
-          isStateChange: true
-        ]
-      }
-
-      return result
-
-    case 2: // physical button 3
-
-      if (msg.command==76) {
-        result = [
-          name: 'button',
-          value: 'pushed',
-          data: [buttonNumber: 3],
-          descriptionText: "$device.displayName button 3 was pushed",
-          isStateChange: true
-         ]
-      }
-      else if (msg.command==03) {
-        result = [
-          name: 'button',
-          value: 'held',
-          data: [buttonNumber: 3],
-          descriptionText: "$device.displayName button 3 started to be held",
-          isStateChange: true
-         ]
-      }
-      else if (msg.command==01) {
-         if (msg.data[0]==1) {
-          result = [
-            name: 'button',
-            value: 'longhold',
-            data: [buttonNumber: 3],
-            descriptionText: "$device.displayName button 3 continued to be held",
-            isStateChange: true
-           ]
-        }
-        else if (msg.data[0]==0){
-          result = [
-            name: 'button',
-            value: 'stophold',
-            data: [buttonNumber: 3],
-            descriptionText: "$device.displayName button 3 stopped being held",
-            isStateChange: true
-           ]
-         }
-        else {
-          result =[
-            descriptionText: "$device.displayName button 3 unknown data in command 01",
-          ]
-        }
-      }
-      else {
-        result = [
-          descriptionText: "$device.displayName button 3 unknown command",
-        ]
-      }
-
-      return result
-
-    case 3: //physical button 2
-
-      if (msg.command==0) {
-        // data will be 0
-        result = [
-          name: 'button',
-          value: 'pushed',
-          data: [buttonNumber: 2],
-          descriptionText: "$device.displayName button 2 was pushed",
-          isStateChange: true
-        ]
-      }
-      else if (msg.command==1) {
-        // data will be nonzero
-        result = [
-          name: 'button',
-          value: 'held',
-          data: [buttonNumber: 2],
-          descriptionText: "$device.displayName button 2 started to be held",
-          isStateChange: true
-        ]
-      }
-      else if (msg.command==3) {
-        // data will be 0
-        result = [
-          name: 'button',
-          value: 'stophold',
-          data: [buttonNumber: 2],
-          descriptionText: "$device.displayName button 2 stopped being held",
-          isStateChange: true
-        ]
-      }
-
-      return result
-
-    case 4: //physical button 4
-
-      if (msg.command==76) {
-        result = [
-          name: 'button',
-          value: 'pushed',
-          data: [buttonNumber: 4],
-          descriptionText: "$device.displayName button 4 was pushed",
-          isStateChange: true
-         ]
-      }
-      else if (msg.command==03) {
-        result = [
-          name: 'button',
-          value: 'held',
-          data: [buttonNumber: 4],
-          descriptionText: "$device.displayName button 4 started to be held",
-          isStateChange: true
-         ]
-      }
-      else if (msg.command==01) {
-         if (msg.data[0]==3) {
-          result = [
-            name: 'button',
-            value: 'longhold',
-            data: [buttonNumber: 4],
-            descriptionText: "$device.displayName button 4 continued to be held",
-            isStateChange: true
-           ]
-        }
-        else if (msg.data[0]==0){
-          result = [
-            name: 'button',
-            value: 'stophold',
-            data: [buttonNumber: 3],
-            descriptionText: "$device.displayName button 4 stopped being held",
-            isStateChange: true
-           ]
-         }
-        else {
-          result = [
-            descriptionText: "$device.displayName button 4 unknown data in command 01",
-          ]
-        }
-      }
-      else {
-        result = [
-          descriptionText: "$device.displayName button 4 unknown command",
-        ]
-      }
-
-      return result
+    }
   }
+
+  Map result = [
+    name: 'button',
+    data: [buttonNumber: buttonNumber],
+    value: state,
+    isStateChange: true,
+    descriptionText: "$device.displayName button $buttonNumber $state"
+  ]
+
+  return result
 
 }
 
