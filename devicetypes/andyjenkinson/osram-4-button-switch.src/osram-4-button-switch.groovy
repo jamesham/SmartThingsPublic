@@ -67,9 +67,10 @@ def configure() {
 
   // Register for battery updates 1-6 hours
   // 0x0020 is battery voltage, 0x0021 is % remaining
-  configureReporting(0x0001, 0x0020, DataType.UINT8, 3600, 21600, 0x01)
+  // 0x20 data type is uint8
+  zigbee.configureReporting(0x0001, 0x0020, 0x20, 3600, 21600, 0x01)
   // this device doesn't support 0021
-  // configureReporting(0x0001, 0x0021, DataType.UINT8, 3600, 21600, 0x01)
+  // zigbee.configureReporting(0x0001, 0x0021, 0x20, 3600, 21600, 0x01)
 
   // outClusters: "0003, 0004, 0005, 0006, 0008, 0019, 0300, 1000"
   // cluster 0x0003: identify
@@ -122,7 +123,7 @@ def parse(String description) {
 
 def refresh() {
   // read battery level attributes
-  zigbee.readAttribute(0x0001, 0x0020)
+  return zigbee.readAttribute(0x0001, 0x0020) + zigbee.configureReporting(0x0001, 0x0020, 0x20, 3600, 21600, 0x01)
   // this device doesn't support 0021
   // zigbee.readAttribute(0x0001, 0x0021)
 }
@@ -145,6 +146,7 @@ private Map parseReadMessage(String description) {
       return [
         name: 'battery',
         value: value,
+        isStateChange: true,
         descriptionText: descriptionText
       ]
     }
@@ -227,6 +229,10 @@ private Map parseCatchAllMessage(String description) {
     }
   }
 
+  if (state == "unknown") {
+    return null
+  }
+
   Map result = [
     name: "button$buttonNumber",
     value: state,
@@ -244,7 +250,8 @@ private Map getBatteryResult(rawValue) {
   def linkText = getLinkText(device)
   def result = [
     name: 'battery',
-    value: '--'
+    value: '--',
+    isStateChange: true
   ]
   def volts = rawValue / 10
   def descriptionText
