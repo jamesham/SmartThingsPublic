@@ -35,17 +35,30 @@ metadata {
   }
 
   tiles(scale: 2) {
-    standardTile("button", "device.button", width: 6, height: 4) {
-      state "default", label: "", icon: "st.switches.switch.off", backgroundColor: "#ffffff"
+    standardTile("button1", "device.button1", width: 3, height: 3, decoration: "flat") {
+      state "off", label: '${currentValue}', icon: "st.switches.light.off", backgroundColor: "#ffffff"
+      state "on", label: '${currentValue}', icon: "st.switches.light.on", backgroundColor: "#00a0dc"
+    }
+    standardTile("button2", "device.button2", width: 3, height: 3, decoration: "flat") {
+      state "off", label: '${currentValue}', icon: "st.switches.light.off", backgroundColor: "#ffffff"
+      state "on", label: '${currentValue}', icon: "st.switches.light.on", backgroundColor: "#00a0dc"
+    }
+    standardTile("button3", "device.button3", width: 3, height: 3, decoration: "flat") {
+      state "off", label: '${currentValue}', icon: "st.switches.light.off", backgroundColor: "#ffffff"
+      state "on", label: '${currentValue}', icon: "st.switches.light.on", backgroundColor: "#00a0dc"
+    }
+    standardTile("button4", "device.button4", width: 3, height: 3, decoration: "flat") {
+      state "off", label: '${currentValue}', icon: "st.switches.light.off", backgroundColor: "#ffffff"
+      state "on", label: '${currentValue}', icon: "st.switches.light.on", backgroundColor: "#00a0dc"
     }
     valueTile("battery", "device.battery", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
       state "battery", label:'${currentValue}% battery'
     }
-    standardTile("refresh", "device.button", decoration: "flat", width: 2, height: 2) {
+    standardTile("refresh", "device.button1", decoration: "flat", width: 2, height: 2) {
       state "default", label:"", action:"refresh.refresh", icon:"st.secondary.refresh"
     }
-    main "button"
-    details(["button", "battery", "refresh"])
+    main "button1"
+    details(["button1", "button3", "button2", "button4", "battery", "refresh"])
   }
 }
 
@@ -75,7 +88,7 @@ def configure() {
     def list = ["0006", "0008", "0300"]
     // the other clusters are scene and group configuration - the lightify gateway sends
     // the config to the switch
-    for (item in list) {
+    for (cluster in list) {
       configCmds.add("zdo bind 0x${device.deviceNetworkId} 0x0${endpoint} 0x01 0x${cluster} {${device.zigbeeId}} {}")
     }
   }
@@ -215,8 +228,7 @@ private Map parseCatchAllMessage(String description) {
   }
 
   Map result = [
-    name: 'button',
-    data: [buttonNumber: buttonNumber],
+    name: "button$buttonNumber",
     value: state,
     isStateChange: true,
     descriptionText: "$device.displayName button $buttonNumber $state"
