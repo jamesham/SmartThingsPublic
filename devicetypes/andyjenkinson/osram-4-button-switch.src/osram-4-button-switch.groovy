@@ -17,7 +17,7 @@
  */
 
 metadata {
-  definition (name: "OSRAM 4 Button Switch Classic", namespace: "andyjenkinson", author: "Andy Jenkinson") {
+  definition (name: "OSRAM 4 Button Switch", namespace: "andyjenkinson", author: "Andy Jenkinson") {
 
     capability "Actuator"
     capability "Battery"
