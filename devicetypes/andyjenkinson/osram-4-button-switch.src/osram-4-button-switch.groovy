@@ -54,7 +54,7 @@ metadata {
     valueTile("battery", "device.battery", decoration: "flat", inactiveLabel: false, width: 2, height: 2) {
       state "battery", label:'${currentValue}% battery'
     }
-    standardTile("refresh", "device.button1", decoration: "flat", width: 2, height: 2) {
+    standardTile("refresh", "device.button", decoration: "flat", width: 2, height: 2) {
       state "default", label:"", action:"refresh.refresh", icon:"st.secondary.refresh"
     }
     main "button1"
@@ -64,6 +64,8 @@ metadata {
 
 def configure() {
   log.debug "Configuring Reporting and Bindings."
+
+  sendEvent(name: "numberOfButtons", value: 4, displayed: false)
 
   // Register for battery updates 1-6 hours
   // 0x0020 is battery voltage, 0x0021 is % remaining
@@ -102,23 +104,18 @@ def parse(String description) {
   // TODO: handle 'numberOfButtons' attribute
   // Parse incoming device messages to generate events
 
-  Map map = [:]
+  def events = null
   if (description?.startsWith('catchall:')) {
     // call parseCatchAllMessage to parse the catchall message received
-    map = parseCatchAllMessage(description)
+    events = parseCatchAllMessage(description)
   } else if (description?.startsWith('read')) {
     // call parseReadMessage to parse the read message received
-    map = parseReadMessage(description)
+    events = parseReadMessage(description)
   } else {
     log.debug "Unknown message received: $description"
   }
-  //return event unless map is not set
-  if (map) {
-    log.debug  "Parsed event: ${map?.descriptionText}"
-    return map
-  }
 
-  return null
+  return events
 }
 
 def refresh() {
@@ -143,12 +140,8 @@ private Map parseReadMessage(String description) {
       def linkText = getLinkText(device)
       def value = Integer.parseInt(msg.value, 16)
       descriptionText = "${linkText} battery was ${result.value}%"
-      return [
-        name: 'battery',
-        value: value,
-        isStateChange: true,
-        descriptionText: descriptionText
-      ]
+      log.debug  "Parsed event: $descriptionText"
+      return createEvent(name: 'battery', 'value': value, 'isStateChange': true, 'descriptionText': descriptionText)
     }
   }
 
@@ -180,28 +173,34 @@ private Map parseCatchAllMessage(String description) {
       break
   }
 
-  def state = "unknown"
+  def action = "unknown"
+  def state = null
+  def amount = null
 
   // on/off
   if (msg.clusterId == 0x0006) {
     if (msg.command == 1) {
-      state = 'on'
+      action = 'on'
+      state = 'pushed'
     }
     else if (msg.command == 0) {
-      state = 'off'
+      action = 'off'
+      state = 'pushed'
     }
   }
 
   // dimming
   else if (msg.clusterId == 0x0008) {
     if (msg.command==05) {
-      state = 'level up'
+      action = 'level up'
+      state = 'held'
     }
     else if (msg.command==01) {
-      state = 'level down'
+      action = 'level down'
+      state = 'held'
     }
     else if (msg.command==03) {
-      state = 'level stop'
+      action = 'level stop'
     }
   }
 
@@ -209,38 +208,65 @@ private Map parseCatchAllMessage(String description) {
   else if (msg.clusterId == 0x0300) {
     if (msg.command==0x4C) {
       if (msg.data[0] == 1) {
-        state = "Step Color Temperature Up"
+        action = "temperature up"
+        state = 'pushed'
       } else if (msg.data[0] == 3) {
-        state = "Step Color Temperature Down"
+        action = "temperature down"
+        state = 'pushed'
       }
     }
     else if (msg.command==03) {
-      def sat = msg.data[0]
-      state = "Move to Saturation $sat"
+      state = 'held'
+      action = "set saturation"
+      amount = msg.data[0]
     }
     else if (msg.command==01) {
       if (msg.data[0] == 0) {
-        state = "Move Hue Stop"
+        action = "hue stop"
       } else if (msg.data[0] == 1) {
-        state = "Move Hue Up"
+        action = "hue up"
+        state = 'held'
       } else if (msg.data[0] == 3) {
-        state = "Move Hue Down"
+        action = "hue down"
+        state = 'held'
       }
     }
   }
 
-  if (state == "unknown") {
+  if (action == "unknown") {
     return null
   }
 
-  Map result = [
-    name: "button$buttonNumber",
-    value: state,
-    isStateChange: true,
-    descriptionText: "$device.displayName button $buttonNumber $state"
+  // We send two events: 1 for the 'button' capability (pushed or held) and 1
+  // for the zigbee command itself (including 'stop' which has no button analog)
+  def events = [
+    createEvent(
+      'name': "button$buttonNumber",
+      'value': action,
+      'data': [
+        'amount': amount
+      ],
+      'isStateChange': true,
+      'descriptionText': "$device.displayName button $buttonNumber $state"
+    )
   ]
 
-  return result
+  if (state != null) {
+    events.add(
+      createEvent(
+        'name': "button",
+        'data': [
+          'buttonNumber': buttonNumber,
+          'amount': amount
+        ],
+        'value': state,
+        'isStateChange': true,
+        'descriptionText': "$device.displayName button $buttonNumber $state"
+      )
+    )
+  }
+
+  return events
 
 }
 
@@ -248,25 +274,26 @@ private Map parseCatchAllMessage(String description) {
 //AN: I don't think this is working yet.
 private Map getBatteryResult(rawValue) {
   def linkText = getLinkText(device)
-  def result = [
-    name: 'battery',
-    value: '--',
-    isStateChange: true
-  ]
   def volts = rawValue / 10
   def descriptionText
+  def value
   if (rawValue == 0) {
+    value = '--'
   } else {
     if (volts > 3.5) {
-      result.descriptionText = "${linkText} battery has too much power (${volts} volts)."
+      descriptionText = "${linkText} battery has too much power (${volts} volts)."
     } else if (volts > 0){
       def minVolts = 2.1
       def maxVolts = 3.0
       def pct = (volts - minVolts) / (maxVolts - minVolts)
-      result.value = Math.min(100, (int) pct * 100)
-      result.descriptionText = "${linkText} battery was ${result.value}%"
+      value = Math.min(100, (int) pct * 100)
+      descriptionText = "${linkText} battery was ${result.value}%"
     }
   }
-  log.debug "Parse returned ${result?.descriptionText}"
-  return result
+  log.debug "Parse returned $descriptionText"
+  return createEvent(
+      'name': 'battery',
+      'value': value,
+      'isStateChange': true
+  )
 }
