@@ -27,7 +27,8 @@ metadata {
     capability "Sensor"
 
     attribute "zMessage", "String"
-    fingerprint profileId: "0104", deviceId: "0810", inClusters: "0000, 0001, 0020, 1000, FD00", outClusters: "0003, 0004, 0005, 0006, 0008, 0019, 0300, 1000", manufacturer: "OSRAM", model: "Switch 4x EU-LIGHTIFY", deviceJoinName: "OSRAM 4x Switch"
+    fingerprint profileId: "0104", deviceId: "0810", inClusters: "0000, 0001, 0020, 1000, FD00", outClusters: "0003, 0004, 0005, 0006, 0008, 0019, 0300, 1000", manufacturer: "OSRAM", model: "Switch 4x EU-LIGHTIFY", deviceJoinName: "OSRAM 4x Switch (EU)"
+    fingerprint profileId: "0104", deviceId: "0810", inClusters: "0000, 1000, FD00", outClusters: "0003, 0004, 0005, 0006, 0008, 0300, 1000", manufacturer: "OSRAM", model: "Switch 4x LIGHTIFY", deviceJoinName: "OSRAM 4x Switch (US)"
   }
 
   simulator {
