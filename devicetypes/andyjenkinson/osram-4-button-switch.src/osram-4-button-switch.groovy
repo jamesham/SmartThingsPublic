@@ -88,7 +88,7 @@ def configure() {
 
   def configCmds = []
   // The switch has 4 endpoints (1 per button) and 8 output clusters
-  for (endpoint=1; endpoint<=4; endpoint++) {
+  for (int endpoint=1; endpoint<=4; endpoint++) {
     def list = ["0006", "0008", "0300"]
     // the other clusters are scene and group configuration - the lightify gateway sends
     // the config to the switch
@@ -149,7 +149,7 @@ private Map parseReadMessage(String description) {
   log.debug "Unknown read message received, parsed message: $msg"
 }
 
-private Map parseCatchAllMessage(String description) {
+private List parseCatchAllMessage(String description) {
   // Create a map from the raw zigbee message to make parsing more intuitive
   def msg = zigbee.parse(description)
   log.debug "message cluster: $msg.clusterId"
@@ -175,7 +175,7 @@ private Map parseCatchAllMessage(String description) {
   }
 
   def action = "unknown"
-  def state = null
+  def state = "released"
   def amount = null
 
   // on/off
@@ -202,6 +202,7 @@ private Map parseCatchAllMessage(String description) {
     }
     else if (msg.command==03) {
       action = 'level stop'
+      state = "released"
     }
   }
 
@@ -216,6 +217,7 @@ private Map parseCatchAllMessage(String description) {
         state = 'pushed'
       }
     }
+    // We always get this event before the set hue commands, hence it is the first 'push'
     else if (msg.command==03) {
       state = 'held'
       action = "set saturation"
@@ -223,13 +225,14 @@ private Map parseCatchAllMessage(String description) {
     }
     else if (msg.command==01) {
       if (msg.data[0] == 0) {
+      	state = "released"
         action = "hue stop"
       } else if (msg.data[0] == 1) {
         action = "hue up"
-        state = 'held'
+        state = 'still held'
       } else if (msg.data[0] == 3) {
         action = "hue down"
-        state = 'held'
+        state = 'still held'
       }
     }
   }
@@ -237,9 +240,15 @@ private Map parseCatchAllMessage(String description) {
   if (action == "unknown") {
     return null
   }
+  
+  log.info "Button $buttonNumber $state (action: $action)"
 
-  // We send two events: 1 for the 'button' capability (pushed or held) and 1
-  // for the zigbee command itself (including 'stop' which has no button analog)
+  // We send two events:
+  // 1. One for the zigbee command itself
+  // 2. One for the 'button' capability (which expects pushed or held).
+  //    We can't send another held button for the second 'push' (the set hue commands send by the righthand buttons)
+  //    We can't send a button event when the button stops being held
+  // This means that a button press results in a custom 'action' event, plus optionally a button event
   def events = [
     createEvent(
       'name': "button$buttonNumber",
@@ -248,11 +257,11 @@ private Map parseCatchAllMessage(String description) {
         'amount': amount
       ],
       'isStateChange': true,
-      'descriptionText': "$device.displayName button $buttonNumber $state"
+      'descriptionText': "$device.displayName button $buttonNumber $action $amount"
     )
   ]
 
-  if (state != null) {
+  if (state != "released" && state != "still held") {
     events.add(
       createEvent(
         'name': "button",
