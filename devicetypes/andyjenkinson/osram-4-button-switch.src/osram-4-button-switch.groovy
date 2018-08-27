@@ -139,7 +139,7 @@ private Map parseReadMessage(String description) {
     else if (msg.attrInt==33) {
       def linkText = getLinkText(device)
       def value = Integer.parseInt(msg.value, 16)
-      descriptionText = "${linkText} battery was ${result.value}%"
+      descriptionText = "${linkText} battery was ${value}%"
       log.debug  "Parsed event: $descriptionText"
       return createEvent(name: 'battery', 'value': value, 'isStateChange': true, 'descriptionText': descriptionText)
     }
@@ -296,7 +296,7 @@ private Map getBatteryResult(rawValue) {
       def maxVolts = 3.0
       def pct = (volts - minVolts) / (maxVolts - minVolts)
       value = Math.min(100, (int) pct * 100)
-      descriptionText = "${linkText} battery was ${result.value}%"
+      descriptionText = "${linkText} battery was ${value}%"
     }
   }
   log.debug "Parse returned $descriptionText"
