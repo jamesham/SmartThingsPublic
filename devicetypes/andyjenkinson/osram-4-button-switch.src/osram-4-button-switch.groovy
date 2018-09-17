@@ -295,7 +295,7 @@ private Map getBatteryResult(rawValue) {
       def minVolts = 2.1
       def maxVolts = 3.0
       def pct = (volts - minVolts) / (maxVolts - minVolts)
-      value = Math.min(100, (int) pct * 100)
+      value = Math.min(100, (int) (pct * 100))
       descriptionText = "${linkText} battery was ${value}%"
     }
   }
