@@ -44,17 +44,22 @@ metadata {
 		command "updateWeather"
 
 		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0201, 0204, 0405", outClusters: "0003, 000A, 0402", manufacturer: "Stelpro", model: "MaestroStat", deviceJoinName: "Stelpro Maestro Thermostat"
-		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0201, 0204, 0405", outClusters: "0003, 000A, 0402", manufacturer: "Stelpro", model: "SORB", deviceJoinName: "Stelpro ORLÉANS Fan Heater"
-		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0201, 0204, 0405", outClusters: "0003, 000A, 0402", manufacturer: "Stelpro", model: "SonomaStyle", deviceJoinName: "Stelpro Sonoma Style Fan Heater"
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0201, 0204, 0405", outClusters: "0003, 000A, 0402", manufacturer: "Stelpro", model: "SORB", deviceJoinName: "Stelpro ORLÉANS Fan Heater", mnmn: "SmartThings", vid: "SmartThings-smartthings-Stelpro_Orleans_Sonoma_Fan_Thermostat"
+		fingerprint profileId: "0104", inClusters: "0000, 0003, 0004, 0201, 0204, 0405", outClusters: "0003, 000A, 0402", manufacturer: "Stelpro", model: "SonomaStyle", deviceJoinName: "Stelpro Sonoma Style Fan Heater", mnmn: "SmartThings", vid: "SmartThings-smartthings-Stelpro_Orleans_Sonoma_Fan_Thermostat"
 	}
 
 	// simulator metadata
 	simulator { }
 
 	preferences {
-		input("lock", "enum", title: "Do you want to lock your thermostat's physical keypad?", options: ["No", "Yes"], defaultValue: "No", required: false, displayDuringSetup: false)
-		input("heatdetails", "enum", title: "Do you want a detailed operating state notification?", options: ["No", "Yes"], defaultValue: "No", required: false, displayDuringSetup: true)
-		input("zipcode", "text", title: "ZipCode (Outdoor Temperature)", description: "[Do not use space](Blank = No Forecast)")
+		section {
+			input("lock", "enum", title: "Do you want to lock your thermostat's physical keypad?", options: ["No", "Yes"], defaultValue: "No", required: false, displayDuringSetup: false)
+			input("heatdetails", "enum", title: "Do you want a detailed operating state notification?", options: ["No", "Yes"], defaultValue: "No", required: false, displayDuringSetup: true)
+		}
+		section {
+			input title: "Outdoor Temperature", description: "To get the current outdoor temperature to display on your thermostat enter your zip code or postal code below and make sure that your SmartThings location has a Geolocation configured (typically used for geofencing).", displayDuringSetup: false, type: "paragraph", element: "paragraph"
+			input("zipcode", "text", title: "ZipCode (Outdoor Temperature)", description: "[Do not use space](Blank = No Forecast)")
+		}
 		/*
 		input("away_setpoint", "enum", title: "Away setpoint", options: ["5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12", "12.5", "13", "13.5", "14", "14.5", "15", "5.5", "15.5", "16", "16.5", "17", "17.5", "18", "18.5", "19", "19.5", "20", "20.5", "21", "21.5", "22", "22.5", "23", "24", "24.5", "25", "25.5", "26", "26.5", "27", "27.5", "28", "28.5", "29", "29.5", "30"], defaultValue: "21", required: true)
 		input("away_setpoint", "enum", title: "Away Setpoint", options: ["5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12", "12.5", "13", "13.5", "14", "14.5", "15", "5.5", "15.5", "16", "16.5", "17", "17.5", "18", "18.5", "19", "19.5", "20", "20.5", "21", "21.5", "22", "22.5", "23", "24", "24.5", "25", "25.5", "26", "26.5", "27", "27.5", "28", "28.5", "29", "29.5", "30"], defaultValue: "17", required: true)
@@ -182,6 +187,7 @@ def setupHealthCheck() {
 
 def configureSupportedRanges() {
 	sendEvent(name: "supportedThermostatModes", value: supportedThermostatModes, displayed: false)
+	// These are part of the deprecated Thermostat capability. Remove these when that capability is removed.
 	sendEvent(name: "thermostatSetpointRange", value: thermostatSetpointRange, displayed: false)
 	sendEvent(name: "heatingSetpointRange", value: heatingSetpointRange, displayed: false)
 }
@@ -202,6 +208,7 @@ def updated() {
 
 	unschedule(scheduledUpdateWeather)
 	if (settings.zipcode) {
+		state.invalidZip = false // Reset and validate the zip-code later
 		requests += updateWeather()
 		runEvery1Hour(scheduledUpdateWeather)
 	}
@@ -250,36 +257,15 @@ def parse(String description) {
 		log.debug "Desc Map: $descMap"
 		if (descMap.clusterInt == THERMOSTAT_CLUSTER) {
 			if (descMap.attrInt == ATTRIBUTE_LOCAL_TEMP) {
-				def intVal = Integer.parseInt(descMap.value, 16)
-				map.name = "temperature"
-				map.unit = getTemperatureScale()
-				map.value = getTemperature(descMap.value)
-
-				if (intVal == 0x7ffd) {		// 0x7FFD
-					map.name = "temperatureAlarm"
-					map.value = "freeze"
-					map.unit = ""
-				} else if (intVal == 0x7fff) {	// 0x7FFF
-					map.name = "temperatureAlarm"
-					map.value = "heat"
-					map.unit = ""
-				} else if (intVal == 0x8000) {	// 0x8000
-					map.name = null
-					map.value = null
-					map.descriptionText = "Received a temperature error"
-				} else if (intVal > 0x8000) {
-					map.value = -(Math.round(2*(655.36 - map.value))/2)
-				}
-
-				if (device.currentValue("temperatureAlarm") != "cleared" && map.name == "temperature") {
-					sendEvent(name: "temperatureAlarm", value: "cleared")
-				}
+				map = handleTemperature(descMap)
 			} else if (descMap.attrInt == ATTRIBUTE_HEAT_SETPOINT) {
 				def intVal = Integer.parseInt(descMap.value, 16)
-				if (intVal != 0x8000) {		// 0x8000
+				// We receive 0x8000 when the thermostat is off
+				if (intVal != 0x8000) {
 					log.debug "HEATING SETPOINT"
 					map.name = "heatingSetpoint"
 					map.value = getTemperature(descMap.value)
+					map.unit = getTemperatureScale()
 					map.data = [heatingSetpointRange: heatingSetpointRange]
 				}
 			} else if (descMap.attrInt == ATTRIBUTE_PI_HEATING_STATE) {
@@ -292,7 +278,10 @@ def parse(String description) {
 					map.value = "heating"
 				}
 
-				if (settings.heatdetails == "No") {
+				// If the user does not want to see the Idle and Heating events in the event history,
+				// don't show them. Otherwise, don't show them more frequently than 30 seconds.
+				if (settings.heatdetails == "No" ||
+					!secondsPast(device.currentState("thermostatOperatingState")?.getLastUpdated(), 30)) {
 					map.displayed = false
 				}
 			}
@@ -320,27 +309,118 @@ def parse(String description) {
 	return result
 }
 
+private getFREEZE_ALARM_TEMP() { getTemperatureScale() == "C" ? 0 : 32 }
+private getHEAT_ALARM_TEMP() { getTemperatureScale() == "C" ? 50 : 122 }
+
+def handleTemperature(descMap) {
+	def map = [:]
+	def intVal = Integer.parseInt(descMap.value, 16)
+
+	// Handle special temperature flags where we need to change the event type
+	if (intVal == 0x7ffd) { // Freeze Alarm
+		map.name = "temperatureAlarm"
+		map.value = "freeze"
+		sendEvent(name: "temperature", value: FREEZE_ALARM_TEMP, unit: getTemperatureScale())
+	} else if (intVal == 0x7fff) { // Overheat Alarm
+		map.name = "temperatureAlarm"
+		map.value = "heat"
+		sendEvent(name: "temperature", value: HEAT_ALARM_TEMP, unit: getTemperatureScale())
+	} else if (intVal == 0x8000) { // Temperature Sensor Error
+		map.descriptionText = "Received a temperature error"
+	} else {
+		if (intVal > 0x8000) { // Handle negative C (< 32F) readings
+			intVal = -(Math.round(2 * (65536 - intVal)) / 2)
+		}
+		map.name = "temperature"
+		map.value = getTemperature(intVal)
+		map.unit = getTemperatureScale()
+
+		def lastTemp = device.currentValue("temperature")
+		def lastAlarm = device.currentValue("temperatureAlarm")
+		if (lastAlarm != "cleared") {
+			def cleared = false
+			if (lastTemp) {
+				lastTemp = convertTemperatureIfNeeded(lastTemp, device.currentState("temperature").unit).toFloat()
+				// Check to see if we are coming out of our alarm state and only clear then
+				// NOTE: A thermostat might send us an alarm *before* it has completed sending us previous measurements,
+				// so it might appear that the alarm is no longer valid. We need to check the trajectory of the temperature
+				// to verify this.
+				if ((lastAlarm == "freeze" &&
+						map.value > FREEZE_ALARM_TEMP &&
+						lastTemp < map.value) ||
+					(lastAlarm == "heat" &&
+						map.value < HEAT_ALARM_TEMP &&
+						lastTemp > map.value)) {
+							log.debug "Clearing $lastAlarm temp alarm"
+							sendEvent(name: "temperatureAlarm", value: "cleared")
+							cleared = true
+				}
+			}
+
+			// Check to see if this temperature event is still a "catch up" event to our alarm temperature threshold, and if it is
+			// just mask it.
+			if (!cleared &&
+					((lastAlarm == "freeze" && map.value > FREEZE_ALARM_TEMP) ||
+					 (lastAlarm == "heat" && map.value < HEAT_ALARM_TEMP))) {
+				log.debug "Hiding stale temperature ${map.value} because of ${lastAlarm} alarm"
+				map.value = (lastAlarm == "freeze") ? FREEZE_ALARM_TEMP : HEAT_ALARM_TEMP
+			}
+		} else { // If we came out of an alarm and went back in to it, we seem to hit an edge case where we don't get the new alarm
+			if (map.value <= FREEZE_ALARM_TEMP) {
+				log.debug "EARLY FREEZE ALARM @ $map.value $map.unit (raw $intVal)"
+				sendEvent(name: "temperatureAlarm", value: "freeze")
+			} else if (map.value >= HEAT_ALARM_TEMP) {
+				log.debug "EARLY HEAT ALARM @  $map.value $map.unit (raw $intVal)"
+				sendEvent(name: "temperatureAlarm", value: "heat")
+			}
+		}
+	}
+
+	map
+}
+
 def updateWeather() {
 	log.debug "updating weather"
 	def weather
 	// If there is a zipcode defined, weather forecast will be sent. Otherwise, no weather forecast.
 	if (settings.zipcode) {
 		log.debug "ZipCode: ${settings.zipcode}"
-        weather = getTwcConditions(settings.zipcode)
-
-		// Check if the variable is populated, otherwise return.
-		if (!weather) {
-			log.debug("Something went wrong, no data found.")
-			return false
+		try {
+			// If we do not have a zip-code setting we've determined as invalid, try to use the zip-code defined.
+			if (!state.invalidZip) {
+				weather = getTwcConditions(settings.zipcode)
+			}
+		} catch (e) {
+			log.debug "getTwcConditions exception: $e"
+			// There was a problem obtaining the weather with this zip-code, so fall back to the hub's location and note this for future runs.
+			state.invalidZip = true
 		}
 
-		def locationScale = getTemperatureScale()
-        def tempToSend = weather.temperature
-		log.debug("Outdoor Temperature: ${tempToSend} ${locationScale}")
-		// Right now this can disrupt device health if the device is
-		// currently offline -- it would be erroneously marked online.
-		//sendEvent( name: 'outsideTemp', value: tempToSend )
-		setOutdoorTemperature(tempToSend)
+		if (!weather) {
+			try {
+				// It is possible that a non-U.S. zip-code was used, so try with the location's lat/lon.
+				if (location?.latitude && location?.longitude) {
+					// Restrict to two decimal places for the API
+					weather = getTwcConditions(sprintf("%.2f,%.2f", location.latitude, location.longitude))
+				}
+			} catch (e2) {
+				log.debug "getTwcConditions exception: $e2"
+				weather = null
+			}
+		}
+
+		// Either the location lat,lon was invalid or one was not defined for the location, on top of an error with the given zip-code
+		if (!weather) {
+			log.debug("Something went wrong, no data found.")
+		} else {
+			def locationScale = getTemperatureScale()
+			def tempToSend = weather.temperature
+			log.debug("Outdoor Temperature: ${tempToSend} ${locationScale}")
+			// Right now this can disrupt device health if the device is
+			// currently offline -- it would be erroneously marked online.
+			//sendEvent( name: 'outsideTemp', value: tempToSend )
+			setOutdoorTemperature(tempToSend)
+		}
 	}
 }
 
@@ -361,34 +441,45 @@ def ping() {
 }
 
 def poll() {
-	def requests = []
 	log.debug "poll()"
+}
+
+def refresh() {
+	def requests = []
+	log.debug "refresh()"
 
 	requests += updateWeather()
 	requests += zigbee.readAttribute(THERMOSTAT_CLUSTER, ATTRIBUTE_LOCAL_TEMP)
+	requests += zigbee.readAttribute(zigbee.RELATIVE_HUMIDITY_CLUSTER, ATTRIBUTE_HUMIDITY_INFO)
 	requests += zigbee.readAttribute(THERMOSTAT_CLUSTER, ATTRIBUTE_PI_HEATING_STATE)
 	requests += zigbee.readAttribute(THERMOSTAT_CLUSTER, ATTRIBUTE_HEAT_SETPOINT)
 	requests += zigbee.readAttribute(THERMOSTAT_UI_CONFIG_CLUSTER, ATTRIBUTE_TEMP_DISP_MODE)
 	requests += zigbee.readAttribute(THERMOSTAT_UI_CONFIG_CLUSTER, ATTRIBUTE_KEYPAD_LOCKOUT)
-	requests += zigbee.readAttribute(zigbee.RELATIVE_HUMIDITY_CLUSTER, 0x0000)
+	requests += zigbee.readAttribute(zigbee.RELATIVE_HUMIDITY_CLUSTER, ATTRIBUTE_HUMIDITY_INFO)
 
 	requests
 }
 
+/**
+ * Given a raw temperature reading in Celsius return a converted temperature.
+ *
+ * @param value The temperature in Celsius, treated based on the following:
+ *                 If value instanceof String, treat as a raw hex string and divide by 100
+ *                 Otherwise treat value as a number and divide by 100
+ *
+ * @return A Celsius or Farenheit value
+ */
 def getTemperature(value) {
 	if (value != null) {
 		log.debug("value $value")
-		def celsius = Integer.parseInt(value, 16) / 100
+		def celsius = (value instanceof String ? Integer.parseInt(value, 16) : value) / 100
 		if (getTemperatureScale() == "C") {
 			return celsius
 		} else {
-			return Math.round(celsiusToFahrenheit(celsius))
+			def rounded = new BigDecimal(celsiusToFahrenheit(celsius)).setScale(0, BigDecimal.ROUND_HALF_UP)
+			return rounded
 		}
 	}
-}
-
-def refresh() {
-	poll()
 }
 
 def setHeatingSetpoint(preciseDegrees) {
@@ -464,10 +555,10 @@ def heat() {
 
 def configure() {
 	def requests = []
-	log.debug "binding to Thermostat cluster"
 
 	unschedule(scheduledUpdateWeather)
 	if (settings.zipcode) {
+		state.invalidZip = false // Reset and validate the zip-code later
 		requests += updateWeather()
 		runEvery1Hour(scheduledUpdateWeather)
 	}
@@ -475,11 +566,12 @@ def configure() {
 	// This thermostat only supports heat
 	sendEvent("name":"thermostatMode", "value":"heat")
 
+	log.debug "binding to Thermostat cluster"
 	requests += zigbee.addBinding(THERMOSTAT_CLUSTER)
 	// Configure Thermostat Cluster
 	requests += zigbee.configureReporting(THERMOSTAT_CLUSTER, ATTRIBUTE_LOCAL_TEMP, DataType.INT16, 10, 60, 50)
 	requests += zigbee.configureReporting(THERMOSTAT_CLUSTER, ATTRIBUTE_HEAT_SETPOINT, DataType.INT16, 1, 0, 50)
-	requests += zigbee.configureReporting(THERMOSTAT_CLUSTER, ATTRIBUTE_PI_HEATING_STATE, DataType.UINT8, 300, 900, 5)
+	requests += zigbee.configureReporting(THERMOSTAT_CLUSTER, ATTRIBUTE_PI_HEATING_STATE, DataType.UINT8, 1, 900, 1)
 
 	// Configure Thermostat Ui Conf Cluster
 	requests += zigbee.configureReporting(THERMOSTAT_UI_CONFIG_CLUSTER, ATTRIBUTE_TEMP_DISP_MODE, DataType.ENUM8, 1, 0, 1)
@@ -488,12 +580,7 @@ def configure() {
 	requests += zigbee.configureReporting(zigbee.RELATIVE_HUMIDITY_CLUSTER, ATTRIBUTE_HUMIDITY_INFO, DataType.UINT16, 10, 300, 1)
 
 	// Read the configured variables
-	requests += zigbee.readAttribute(THERMOSTAT_CLUSTER, ATTRIBUTE_LOCAL_TEMP)
-	requests += zigbee.readAttribute(THERMOSTAT_CLUSTER, ATTRIBUTE_HEAT_SETPOINT)
-	requests += zigbee.readAttribute(THERMOSTAT_CLUSTER, ATTRIBUTE_PI_HEATING_STATE)
-	requests += zigbee.readAttribute(THERMOSTAT_UI_CONFIG_CLUSTER, ATTRIBUTE_TEMP_DISP_MODE)
-	requests += zigbee.readAttribute(THERMOSTAT_UI_CONFIG_CLUSTER, ATTRIBUTE_KEYPAD_LOCKOUT)
-	requests += zigbee.readAttribute(zigbee.RELATIVE_HUMIDITY_CLUSTER, ATTRIBUTE_HUMIDITY_INFO)
+	requests += refresh()
 
 	requests
 }
@@ -533,4 +620,26 @@ def auto() {
 
 def fanAuto() {
 	log.debug "${device.displayName} does not support fan auto"
+}
+
+/**
+ * Checks if the time elapsed from the provided timestamp is greater than the number of senconds provided
+ *
+ * @param timestamp: The timestamp
+ *
+ * @param seconds: The number of seconds
+ *
+ * @returns true if elapsed time is greater than number of seconds provided, else false
+ */
+private Boolean secondsPast(timestamp, seconds) {
+	if (!(timestamp instanceof Number)) {
+		if (timestamp instanceof Date) {
+			timestamp = timestamp.time
+		} else if ((timestamp instanceof String) && timestamp.isNumber()) {
+			timestamp = timestamp.toLong()
+		} else {
+			return true
+		}
+	}
+	return (now() - timestamp) > (seconds * 1000)
 }
