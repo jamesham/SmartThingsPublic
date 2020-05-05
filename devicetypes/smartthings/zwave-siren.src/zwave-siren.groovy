@@ -39,6 +39,11 @@ metadata {
 		//zw:Fs type:1005 mfr:0129 prod:6F01 model:0001 ver:1.04 zwv:4.33 lib:03 cc:5E,80,5A,72,73,86,70,98 sec:59,2B,71,85,25,7A role:07 ff:8F00 ui:8F00
 		fingerprint mfr: "0129", prod: "6F01", model: "0001", deviceJoinName: "Yale External Siren"
 		fingerprint mfr: "0060", prod: "000C", model: "0002", deviceJoinName: "Everspring Outdoor Solar Siren", vid: "generic-siren-12"
+		fingerprint mfr: "0154", prod: "0004", model: "0002", deviceJoinName: "POPP Solar Outdoor Siren", vid: "generic-siren-12"
+		fingerprint mfr: "0109", prod: "2005", model: "0518", deviceJoinName: "Vision Outdoor Siren"
+		fingerprint mfr: "0258", prod: "0003", model: "6088", deviceJoinName: "NEO Coolcam Siren Alarm"//AU
+		fingerprint mfr: "0258", prod: "0600", model: "1028", deviceJoinName: "NEO Coolcam Siren Alarm"//MY
+		fingerprint mfr: "0109", prod: "2009", model: "0908", deviceJoinName: "Vision Indoor Siren"
 	}
 
 	simulator {
@@ -74,13 +79,13 @@ metadata {
 
 		// Yale siren only
 		preferences {
-			input name: "alarmLength", type: "number", title: "Alarm length", range: "1..10"
+			input name: "alarmLength", type: "number", title: "Alarm length", description: "This setting does not apply to all devices", range: "1..10"
 			// defaultValue: 10
-			input name: "alarmLEDflash", type: "bool", title: "Alarm LED flash"
+			input name: "alarmLEDflash", type: "bool", title: "Alarm LED flash", description: "This setting does not apply to all devices"
 			// defaultValue: false
-			input name: "comfortLED", type: "number", title: "Comfort LED (x10 sec.)", range: "0..25"
+			input name: "comfortLED", type: "number", title: "Comfort LED (x10 sec.)", description: "This setting does not apply to all devices", range: "0..25"
 			// defaultValue: 0
-			input name: "tamper", type: "bool", title: "Tamper alert"
+			input name: "tamper", type: "bool", title: "Tamper alert", description: "This setting does not apply to all devices"
 			// defaultValue: false
 		}
 
@@ -129,7 +134,7 @@ def initialize() {
 		log.warn "Initializition of ${device.displayName} has failed with too many attempts"
 		return
 	}
-	
+
 	def cmds = []
 
 	if (!device.currentState("alarm")) {
@@ -139,7 +144,7 @@ def initialize() {
 		}
 	}
 	if (!device.currentState("battery")) {
-		if (zwaveInfo?.cc?.contains("80")) {
+		if (zwaveInfo?.cc?.contains("80") || zwaveInfo?.sec?.contains("80")) {
 			cmds << secure(zwave.batteryV1.batteryGet())
 		} else {
 			// Right now this DTH assumes all devices are battery powered, in the event a device is wall powered we should populate something
@@ -180,6 +185,10 @@ def getYaleDefaults() {
 	 2: true,
 	 3: 0,
 	 4: false]
+}
+
+def getEverspringDefaultAlarmLength() {
+	return 180
 }
 
 def getConfigurationCommands() {
@@ -227,13 +236,27 @@ def getConfigurationCommands() {
 		// if there's nothing to configure, we're configured
 		state.configured = true
 	}
+
+	if (isEverspring()) {
+		if (!state.alarmLength) {
+			state.alarmLength = everspringDefaultAlarmLength
+		}
+		Short alarmLength = (settings.alarmLength as Short) ?: everspringDefaultAlarmLength
+
+		if (alarmLength != state.alarmLength) {
+			alarmLength = calcEverspringAlarmLen(alarmLength)
+			state.alarmLength = alarmLength
+			log.debug "alarm settings: ${alarmLength}"
+		}
+		cmds << secure(zwave.configurationV2.configurationSet(parameterNumber: 1, size: 2, configurationValue: [0,alarmLength]))
+	}
+
 	if (cmds.size > 0) {
 		// send this last to confirm we were heard
 		cmds << secure(zwave.configurationV2.configurationGet(parameterNumber: 1))
 	}
 	cmds
 }
-
 
 def poll() {
 	if (secondsPast(state.lastbatt, 36 * 60 * 60)) {
@@ -316,11 +339,11 @@ def parse(String description) {
 			result = createEvent(descriptionText: description, displayed: false)
 		} else {
 			result = createEvent(
-				descriptionText: "This device failed to complete the network security key exchange. If you are unable to control it via SmartThings, you must remove it from your network and add it again.",
-				eventType: "ALERT",
-				name: "secureInclusion",
-				value: "failed",
-				displayed: true,
+					descriptionText: "This device failed to complete the network security key exchange. If you are unable to control it via SmartThings, you must remove it from your network and add it again.",
+					eventType: "ALERT",
+					name: "secureInclusion",
+					value: "failed",
+					displayed: true,
 			)
 		}
 	} else {
@@ -366,6 +389,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv2.ConfigurationReport 
 	} else {
 		state.configured = true
 	}
+	log.debug "configuration report: ${cmd}"
 	return [:]
 }
 
@@ -436,7 +460,7 @@ def zwaveEvent(physicalgraph.zwave.commands.notificationv3.NotificationReport cm
 			case 0x03: //Tamper switch is pressed more than 3 sec and released
 				result << createEvent([name: "tamper", value: "detected"])
 				result << createEvent([name: "alarm", value: "both"])
-			break
+				break
 		}
 	}
 	result
@@ -457,6 +481,16 @@ private Boolean secondsPast(timestamp, seconds) {
 		}
 	}
 	return (new Date().time - timestamp) > (seconds * 1000)
+}
+
+def calcEverspringAlarmLen(int alarmLength) {
+	//If the siren is Everspring then the alarm length can be set to 1, 2 or max 3 minutes
+	def map = [1:60, 2:120, 3:180]
+	if (alarmLength > 3) {
+		return everspringDefaultAlarmLength
+	} else {
+		return map[alarmLength].value
+	}
 }
 
 def isYale() {

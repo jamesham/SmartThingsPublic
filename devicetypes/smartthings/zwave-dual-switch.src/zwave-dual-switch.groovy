@@ -30,6 +30,7 @@ metadata {
 		fingerprint mfr: "0258", prod: "0003", model: "108B", deviceJoinName: "NEO coolcam Light Switch 1"
 		fingerprint mfr: "0312", prod: "C000", model: "C004", deviceJoinName: "EVA LOGIK Smart Plug 2CH 1"
 		fingerprint mfr: "0312", prod: "FF00", model: "FF05", deviceJoinName: "Minoston Smart Plug 2CH 1"
+		fingerprint mfr: "0312", prod: "C000", model: "C007", deviceJoinName: "Evalogik Outdoor Smart Plug 2CH 1"
 	}
 
 	// tile definitions
@@ -141,6 +142,14 @@ def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulat
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.multichannelv3.MultiChannelCmdEncap cmd) {
+	if (cmd.commandClass == 0x6C && cmd.parameter.size >= 4) { // Supervision encapsulated Message
+		// Supervision header is 4 bytes long, two bytes dropped here are the latter two bytes of the supervision header
+		cmd.parameter = cmd.parameter.drop(2)
+		// Updated Command Class/Command now with the remaining bytes
+		cmd.commandClass = cmd.parameter[0]
+		cmd.command = cmd.parameter[1]
+		cmd.parameter = cmd.parameter.drop(2)
+	}
 	def encapsulatedCommand = cmd.encapsulatedCommand([0x32: 3, 0x25: 1, 0x20: 1])
 	if (cmd.sourceEndPoint == 1) {
 		zwaveEvent(encapsulatedCommand, 1)
@@ -222,7 +231,7 @@ def encap(endpointNumber, cmd) {
 private command(physicalgraph.zwave.Command cmd) {
 	if (zwaveInfo.zw.contains("s")) {
 		secEncap(cmd)
-	} else if (zwaveInfo.cc.contains("56")){
+	} else if (zwaveInfo?.cc?.contains("56")){
 		crcEncap(cmd)
 	} else {
 		cmd.format()
